@@ -140,8 +140,10 @@ def validate_row(
     lgas: Mapping[str, tuple[str, str]],
     *,
     default_region: str = "NG",
+    allowed: frozenset[Level] | None = None,
 ) -> RowResult:
-    """``lgas`` maps fold(name) -> (scope id, display name); 'X LGEA' and 'X' both resolve."""
+    """``lgas`` maps fold(name) -> (scope id, display name); 'X LGEA' and 'X' both resolve.
+    ``allowed`` restricts the levels the board registers (setting ``register.levels``)."""
     data = {k: (raw.get(k) or "").strip() for k in TEMPLATE_COLUMNS}
     errors: list[str] = []
     for col in REQUIRED:
@@ -164,6 +166,9 @@ def validate_row(
         levels, err = parse_levels(data["levels"])
         if err:
             errors.append(err)
+        elif allowed is not None and not set(levels) <= allowed:
+            other = ", ".join(LEVEL_LABEL[lv] for lv in levels if lv not in allowed)
+            errors.append(f"this board does not register {other} institutions")
     phone = None
     if data["phone"]:
         try:

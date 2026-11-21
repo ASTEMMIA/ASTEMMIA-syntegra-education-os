@@ -85,3 +85,10 @@ def test_duplicates_in_file_and_already_registered():
     assert (
         s["valid"] == 3 and s["errors"] == 3 and s["by_lga"] == {"Aba South": 1, "Umuahia North": 2}
     )
+
+
+def test_board_registers_only_its_levels():
+    basic_only = frozenset({Level.PRIMARY})
+    r = validate_row(2, row(levels="JSS & SSS"), LGAS, allowed=basic_only)
+    assert r.clean is None and r.errors == ["this board does not register JSS, SSS institutions"]
+    assert validate_row(2, row(levels="Primary"), LGAS, allowed=basic_only).clean is not None

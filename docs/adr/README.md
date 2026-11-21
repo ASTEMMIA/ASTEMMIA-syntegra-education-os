@@ -13,4 +13,5 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [006](ADR-006-enterprise-platform-baseline.md) | Enterprise baseline: RHEL 10 UBI, Red Hat Python 3.14, MySQL edition | Accepted (RDS for MySQL 9.7 Community) |
 | [007](ADR-007-sign-in-and-tokens.md) | Sign-in and tokens: dev login, ES256 access tokens, rotating refresh tokens | Accepted (OIDC + MFA open) |
 | [008](ADR-008-person-master-record.md) | Person master record: matching, merge, encryption, data quality | Accepted (cross-tenant identity open) |
-| [009](ADR-009-asubeb-state-tenancy.md) | Government schools in one ASUBEB tenant; duplicate reviews routed to the LGEA or state | Accepted |
+| [009](ADR-009-asubeb-state-tenancy.md) | Government schools under ASUBEB; duplicate reviews routed to the LGEA or state | Accepted (tenancy superseded by 010) |
+| [010](ADR-010-abia-state-kindergarten-to-university.md) | One Abia State tenant, kindergarten to university: ASUBEB and the Tertiary Education Board as scopes | Accepted (board name to confirm) |

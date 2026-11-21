@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import uuid
 from datetime import date
 
 import syntegra.governance.models
@@ -95,16 +96,22 @@ ABIA_LGAS = (
     "Umuahia South",
     "Umu Nneochi",
 )
-ASUBEB_CODE = "NG-AB-ASUBEB"
+STATE_CODE = "NG-AB"
 NIGERIA_CODE = "NG"
+ASUBEB_CODE = "ASUBEB"
+TERTIARY_CODE = "TERTIARY-BOARD"
+# Working name until the official name and abbreviation are confirmed (ADR-010).
+TERTIARY_NAME = "Abia State Tertiary Education Board"
+BASIC_LEVELS = ["eccde", "primary", "jss", "sss"]
 
 
 def lgea_code(lga: str) -> str:
     return "LGEA-" + "-".join(lga.upper().split())
 
 
-async def seed_asubeb(platform_code: str, admin_login: str | None) -> dict[str, object]:
-    """Create Nigeria -> ASUBEB -> 17 LGEAs (ADR-009). Safe to run again: nothing is duplicated."""
+async def seed_abia(platform_code: str, admin_login: str | None) -> dict[str, object]:
+    """Nigeria -> Abia State (tenant) -> ASUBEB (+17 LGEAs) and the Tertiary Education Board
+    (ADR-010). Safe to run again: nothing is duplicated."""
     settings = get_settings()
     engine = make_engine(settings.database_url)
     sm = make_sessionmaker(engine)
@@ -127,74 +134,99 @@ async def seed_asubeb(platform_code: str, admin_login: str | None) -> dict[str, 
                 local_label="Federal Ministry of Education",
             )
             created.append("Nigeria")
-        board = await governance.tenant_by_code(session, ASUBEB_CODE)
-        if board is None:
-            board = await governance.create_child_tenant(
+        state = await governance.tenant_by_code(session, STATE_CODE)
+        if state is None:
+            state = await governance.create_child_tenant(
                 session,
                 parent_scope_id=nigeria.root_scope_node_id,
-                code=ASUBEB_CODE,
-                name="Abia State Universal Basic Education Board",
+                code=STATE_CODE,
+                name="Abia State",
                 level=GovernanceLevel.REGION,
                 country="NG",
                 residency_region=nigeria.residency_region,
                 time_zone="Africa/Lagos",
-                local_label="ASUBEB",
+                local_label="State",
             )
-            created.append("ASUBEB")
+            created.append("Abia State")
         with use_context(
             RequestContext(
-                board.id, board.root_scope_node_id, None, system=True, purpose="seed-asubeb"
+                state.id, state.root_scope_node_id, None, system=True, purpose="seed-abia"
             )
         ):
+
+            async def node(
+                parent: uuid.UUID, level: GovernanceLevel, code: str, name: str, label: str
+            ) -> uuid.UUID:
+                found = await governance.scope_node_by_code(session, state.id, code)
+                if found is not None:
+                    return found.id
+                made = await governance.create_scope_node(
+                    session, parent_id=parent, level=level, code=code, name=name, local_label=label
+                )
+                created.append(code)
+                return made.id
+
+            # Boards rank below the state; LGEAs below a board; institutions below those.
+            asubeb = await node(
+                state.root_scope_node_id,
+                GovernanceLevel.LOCAL_AUTHORITY,
+                ASUBEB_CODE,
+                "Abia State Universal Basic Education Board",
+                "Board",
+            )
+            tertiary = await node(
+                state.root_scope_node_id,
+                GovernanceLevel.LOCAL_AUTHORITY,
+                TERTIARY_CODE,
+                TERTIARY_NAME,
+                "Board",
+            )
             for lga in ABIA_LGAS:
-                code = lgea_code(lga)
-                if await governance.scope_node_by_code(session, board.id, code) is None:
-                    await governance.create_scope_node(
-                        session,
-                        parent_id=board.root_scope_node_id,
-                        level=GovernanceLevel.LOCAL_AUTHORITY,
-                        code=code,
-                        name=f"{lga} LGEA",
-                        local_label="LGEA",
-                    )
-                    created.append(code)
-            if admin_login and await iam.user_by_login(session, board.id, admin_login) is None:
+                await node(asubeb, GovernanceLevel.NETWORK, lgea_code(lga), f"{lga} LGEA", "LGEA")
+            if await governance.resolve_config(session, asubeb, "register.levels") is None:
+                await governance.set_config(
+                    session, scope_node_id=asubeb, key="register.levels", value=BASIC_LEVELS
+                )
+                created.append("ASUBEB register levels")
+            if admin_login and await iam.user_by_login(session, state.id, admin_login) is None:
                 user = await iam.create_user(
                     session,
-                    tenant_id=board.id,
+                    tenant_id=state.id,
                     login=admin_login,
-                    display_name="ASUBEB administrator",
+                    display_name="Abia State administrator",
                 )
                 await iam.grant_role(
                     session,
                     user_id=user.id,
                     role_code="STA",
-                    scope_node_id=board.root_scope_node_id,
+                    scope_node_id=state.root_scope_node_id,
                 )
                 created.append(f"user {admin_login} (STA)")
     await engine.dispose()
     return {
-        "asubeb_tenant_id": str(board.id),
-        "asubeb_root_scope_id": str(board.root_scope_node_id),
+        "state_tenant_id": str(state.id),
+        "asubeb_scope_id": str(asubeb),
+        "tertiary_board_scope_id": str(tertiary),
         "created": created,
     }
 
 
-async def import_schools(text: str, source_name: str, tenant_code: str, commit: bool) -> int:
-    """Preview (and with --commit, register) a CSV list of schools under a board (ADR-009)."""
+async def import_schools(text: str, source_name: str, board_code: str, commit: bool) -> int:
+    """Preview (and with --commit, register) a CSV list of schools under a board (ADR-010)."""
     from syntegra.institutions import api as institutions
 
     settings = get_settings()
     engine = make_engine(settings.database_url)
     sm = make_sessionmaker(engine)
     async with sm() as session, session.begin():
-        board = await governance.tenant_by_code(session, tenant_code)
-        if board is None:
-            raise SystemExit(f"organisation {tenant_code} not found: run seed-asubeb first")
+        state = await governance.tenant_by_code(session, STATE_CODE)
+        board = (
+            await governance.scope_node_by_code(session, state.id, board_code) if state else None
+        )
+        if state is None or board is None:
+            raise SystemExit(f"board {board_code} not found: run seed-abia first")
         with use_context(
-            RequestContext(
-                board.id, board.root_scope_node_id, None, system=True, purpose="school-import"
-            )
+            RequestContext(state.id, board.id, None, system=True, purpose="school-import")
         ):
             job_id = await institutions.preview_import(session, text, source_name=source_name)
             job, rows = await institutions.get_job(session, job_id)
@@ -251,12 +283,16 @@ def main() -> None:
     b.add_argument("--code", default="SYNTEGRA")
     b.add_argument("--name", default="Syntegra programme")
     b.add_argument("--region", default=get_settings().residency_region)
-    a = sub.add_parser("seed-asubeb", help="create ASUBEB and its 17 LGEAs (ADR-009)")
+    a = sub.add_parser(
+        "seed-abia",
+        aliases=["seed-asubeb"],
+        help="create Abia State, ASUBEB (+17 LGEAs) and the Tertiary Education Board",
+    )
     a.add_argument("--platform-code", default="SYNTEGRA")
     a.add_argument("--admin", help="login for an ASUBEB administrator (state officer role)")
     imp = sub.add_parser("import-schools", help="preview or register a CSV list of schools")
     imp.add_argument("csv_path")
-    imp.add_argument("--tenant-code", default=ASUBEB_CODE)
+    imp.add_argument("--board-code", default=ASUBEB_CODE)
     imp.add_argument(
         "--commit", action="store_true", help="register the valid rows (default: preview only)"
     )
@@ -273,15 +309,15 @@ def main() -> None:
                 asyncio.run(bootstrap(args.admin, args.code, args.name, args.region)), indent=2
             )
         )
-    elif args.cmd == "seed-asubeb":
-        print(json.dumps(asyncio.run(seed_asubeb(args.platform_code, args.admin)), indent=2))
+    elif args.cmd in ("seed-abia", "seed-asubeb"):
+        print(json.dumps(asyncio.run(seed_abia(args.platform_code, args.admin)), indent=2))
     elif args.cmd == "import-schools":
         from pathlib import Path
 
         csv_file = Path(args.csv_path)
         text = csv_file.read_text(encoding="utf-8-sig")
         raise SystemExit(
-            asyncio.run(import_schools(text, csv_file.name, args.tenant_code, args.commit))
+            asyncio.run(import_schools(text, csv_file.name, args.board_code, args.commit))
         )
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))

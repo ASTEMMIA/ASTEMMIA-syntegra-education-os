@@ -1,6 +1,6 @@
 # ADR-009: Government schools in one ASUBEB tenant
 
-**Status:** Accepted 2026-11-21
+**Status:** Accepted 2026-11-21. Tenancy superseded by [ADR-010](ADR-010-abia-state-kindergarten-to-university.md): ASUBEB is now a board inside one Abia State tenant. The review routing in this ADR still holds.
 
 ## Context
 All Abia State government primary and secondary schools will be registered on the system **under the Abia

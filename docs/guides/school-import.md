@@ -1,7 +1,9 @@
 # Registering ASUBEB schools from a spreadsheet
 
-All Abia State government primary and secondary schools are registered under ASUBEB
-([ADR-009](../adr/ADR-009-asubeb-state-tenancy.md)). Load them from one spreadsheet saved as **CSV (UTF-8)**.
+All Abia State government kindergarten (ECCDE), primary and secondary schools are registered under ASUBEB,
+one of the boards inside the Abia State organisation
+([ADR-010](../adr/ADR-010-abia-state-kindergarten-to-university.md)). Work as an ASUBEB user, with ASUBEB as
+your active scope, when you upload. Load them from one spreadsheet saved as **CSV (UTF-8)**.
 
 ## Columns
 
@@ -39,7 +41,7 @@ name in the same LGA. Case, punctuation and accents are ignored.
 ## Command line (for the implementation team)
 
 ```bash
-python -m syntegra.cli seed-asubeb                      # once: ASUBEB + 17 LGEAs
-python -m syntegra.cli import-schools schools.csv       # check only
-python -m syntegra.cli import-schools schools.csv --commit
+python -m syntegra.cli seed-abia                                   # once: Abia State, ASUBEB + 17 LGEAs, Tertiary Board
+python -m syntegra.cli import-schools schools.csv --board-code ASUBEB            # check only
+python -m syntegra.cli import-schools schools.csv --board-code ASUBEB --commit
 ```

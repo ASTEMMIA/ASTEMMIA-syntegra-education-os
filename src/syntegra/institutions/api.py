@@ -76,21 +76,35 @@ def template_csv() -> str:
 
 
 async def _lgea_index(session: AsyncSession) -> dict[str, tuple[str, str]]:
-    """LGEAs directly under the caller's tenant root: fold(name) and fold(name minus 'LGEA')."""
+    """The LGEAs of the board the caller works in: the children of the active scope that sit
+    above institution level (ADR-010). Keys are fold(name) and fold(name minus 'LGEA')."""
     ctx = current_context()
-    root = await governance.tenant_root_scope(session, ctx.tenant_id)
     index: dict[str, tuple[str, str]] = {}
     after = None
     while True:
-        page = await governance.list_children(session, root, after=after, limit=200)
+        page = await governance.list_children(session, ctx.scope_node_id, after=after, limit=200)
         for n in page:
-            if n.level == GovernanceLevel.LOCAL_AUTHORITY:
+            if n.level < GovernanceLevel.INSTITUTION:
                 bare = n.name.removesuffix(" LGEA").strip()
                 index[fold(n.name)] = (str(n.id), bare)
                 index[fold(bare)] = (str(n.id), bare)
         if len(page) < 200:
             return index
         after = page[-1].id
+
+
+LEVELS_SETTING = "register.levels"
+DEFAULT_LEVELS = frozenset({Level.ECCDE, Level.PRIMARY, Level.JSS, Level.SSS})
+
+
+async def allowed_levels(session: AsyncSession) -> frozenset[Level]:
+    """Levels the caller's board registers, from configuration (P4); default: basic education."""
+    value = await governance.resolve_config(
+        session, current_context().scope_node_id, LEVELS_SETTING
+    )
+    if not value:
+        return DEFAULT_LEVELS
+    return frozenset(Level(v) for v in value)
 
 
 async def _existing(session: AsyncSession) -> tuple[set[str], set[tuple[str, str]]]:
@@ -158,7 +172,7 @@ async def register_institution(
     managing_body: str | None = None,
 ) -> InstitutionView:
     """Register one school (same validation as an import row)."""
-    result = validate_row(1, raw, await _lgea_index(session))
+    result = validate_row(1, raw, await _lgea_index(session), allowed=await allowed_levels(session))
     codes, names = await _existing(session)
     mark_duplicates([result], existing_codes=codes, existing_names=names)
     if result.clean is None:
@@ -207,11 +221,12 @@ async def preview_import(
     lgas = await _lgea_index(session)
     if not lgas:
         raise ValidationFailed(
-            "this organisation has no LGEAs yet", next_action="Run the ASUBEB setup first."
+            "there are no LGEAs under the scope you are working in",
+            next_action="Switch to your board (for example ASUBEB) and upload again.",
         )
-    results = [
-        validate_row(i, raw, lgas) for i, raw in enumerate(rows, start=2)
-    ]  # row 1 is the header
+    allowed = await allowed_levels(session)
+    # Row 1 is the header, so data rows are numbered from 2 as in the spreadsheet.
+    results = [validate_row(i, raw, lgas, allowed=allowed) for i, raw in enumerate(rows, start=2)]
     codes, names = await _existing(session)
     mark_duplicates(results, existing_codes=codes, existing_names=names)
     job = BulkJob(
@@ -270,8 +285,9 @@ async def commit_import(
     if job.status != "previewed":
         raise Conflict("this import has already been committed", next_action="Start a new import.")
     lgas = await _lgea_index(session)
+    allowed = await allowed_levels(session)
     candidates = [r for r in rows if r.status == "valid"]
-    rechecked = [validate_row(r.row_no, _as_raw(r.data), lgas) for r in candidates]
+    rechecked = [validate_row(r.row_no, _as_raw(r.data), lgas, allowed=allowed) for r in candidates]
     codes, names = await _existing(session)
     mark_duplicates(rechecked, existing_codes=codes, existing_names=names)
     created = skipped = 0
