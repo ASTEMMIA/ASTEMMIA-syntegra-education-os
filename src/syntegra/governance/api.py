@@ -61,6 +61,7 @@ __all__ = [
     "resolve_config",
     "set_config",
     "subtree_of",
+    "tenant_by_code",
     "tenant_root_scope",
 ]
 
@@ -119,6 +120,20 @@ async def tenant_root_scope(session: AsyncSession, tenant_id: uuid.UUID) -> uuid
     if tenant is None or tenant.root_scope_node_id is None:
         raise NotFound("tenant not found")
     return tenant.root_scope_node_id
+
+
+async def tenant_by_code(session: AsyncSession, code: str) -> TenantView | None:
+    tenant = (await session.execute(select(Tenant).where(Tenant.code == code))).scalar_one_or_none()
+    if tenant is None or tenant.root_scope_node_id is None or tenant.status != "active":
+        return None
+    return TenantView(
+        tenant.id,
+        tenant.code,
+        tenant.name,
+        tenant.kind,
+        tenant.root_scope_node_id,
+        tenant.residency_region,
+    )
 
 
 async def get_tenant(session: AsyncSession, tenant_id: uuid.UUID) -> TenantView:

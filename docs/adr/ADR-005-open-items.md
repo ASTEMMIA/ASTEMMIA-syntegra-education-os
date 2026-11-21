@@ -4,7 +4,7 @@ Phase 0 scope (§18) that this baseline does not yet deliver:
 
 | Item | CEDA | Notes |
 |------|------|-------|
-| OIDC / OAuth 2.1 JWT verification, MFA, SCIM | §8.3, §10.1 | Only the dev header authenticator exists. It refuses to start in staging/prod. |
+| OIDC sign-in, MFA, SCIM, KMS-held signing key | §8.3, §10.1 | Token issuance, verification, refresh rotation and revocation are done (ADR-007); only the dev login proves identity so far, and it is disabled outside dev/test. |
 | MDM: person, external_identifier, matching | §4, §6.2 | Includes field-level KMS envelope encryption and HMAC lookup. |
 | Code lists (ISO 3166/639/4217, ISCED) | §7.2 | Versioned `code_list` and `code_value` |
 | Break-glass access, consent and processing purpose | §8.2, §8.4 | |

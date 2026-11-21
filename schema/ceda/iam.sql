@@ -50,6 +50,24 @@ CREATE TABLE iam.access_grant (
 
 CREATE INDEX ix_access_grant_tenant_id_user_id ON iam.access_grant (tenant_id, user_id);
 
+CREATE TABLE iam.auth_session (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	user_id BINARY(16) NOT NULL, 
+	method VARCHAR(16) NOT NULL, 
+	amr VARCHAR(64) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	absolute_expires_at DATETIME(6) NOT NULL, 
+	revoked_at DATETIME(6), 
+	revoke_reason VARCHAR(32), 
+	ip VARCHAR(45), 
+	user_agent VARCHAR(255), 
+	CONSTRAINT pk_auth_session PRIMARY KEY (id), 
+	CONSTRAINT fk_auth_session_user_id_app_user FOREIGN KEY(user_id) REFERENCES iam.app_user (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_auth_session_tenant_id_user_id ON iam.auth_session (tenant_id, user_id);
+
 CREATE TABLE iam.role_permission (
 	role_id BINARY(16) NOT NULL, 
 	permission VARCHAR(64) NOT NULL, 
@@ -58,3 +76,19 @@ CREATE TABLE iam.role_permission (
 	CONSTRAINT ck_role_permission_cell CHECK (cell IN ('Y','P','C','A')), 
 	CONSTRAINT fk_role_permission_role_id_role FOREIGN KEY(role_id) REFERENCES iam.`role` (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE iam.refresh_token (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	session_id BINARY(16) NOT NULL, 
+	token_hash BINARY(32) NOT NULL, 
+	issued_at DATETIME(6) NOT NULL, 
+	expires_at DATETIME(6) NOT NULL, 
+	used_at DATETIME(6), 
+	replaced_by_id BINARY(16), 
+	CONSTRAINT pk_refresh_token PRIMARY KEY (id), 
+	CONSTRAINT fk_refresh_token_session_id_auth_session FOREIGN KEY(session_id) REFERENCES iam.auth_session (id), 
+	CONSTRAINT uq_refresh_token_token_hash UNIQUE (token_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_refresh_token_tenant_id_session_id ON iam.refresh_token (tenant_id, session_id);

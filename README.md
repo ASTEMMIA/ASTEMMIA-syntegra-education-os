@@ -35,8 +35,17 @@ uv run python -m syntegra.cli bootstrap --admin admin@example.org
 uv run uvicorn syntegra.web.app:create_app --factory --reload        # http://localhost:8000/docs
 ```
 
-In dev, requests authenticate with `X-Dev-User-Id`, `X-Tenant-Id` and `X-Scope-Node-Id` headers (OIDC is
-an open item in ADR-005).
+In dev, sign in with the development login (ADR-007), then send the access token on every request:
+
+```bash
+curl -s -X POST localhost:8000/v1/auth/dev-login -H 'content-type: application/json' \
+  -d '{"tenant_code":"SYNTEGRA","login":"admin@example.org"}'
+curl -s localhost:8000/v1/me -H "Authorization: Bearer <access_token>"
+```
+
+Access tokens last 10 minutes. Exchange the refresh token at `POST /v1/auth/refresh`, and sign out with
+`POST /v1/auth/logout`. The dev login does not exist outside dev/test, and the server refuses to start
+there without a real signing key.
 
 ## Quality gate (CI)
 `ruff` → `mypy --strict` (domain) → `lint-imports` → generated DDL is current (`schema/ceda/*.sql`) →

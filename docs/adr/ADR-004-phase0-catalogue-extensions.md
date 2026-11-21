@@ -6,7 +6,8 @@
 the existing naming rules:
 
 **Events:** `GOV.TENANT_CREATED`, `GOV.SCOPE_NODE_CREATED`, `GOV.POLICY_PUBLISHED`, `GOV.POLICY_WITHDRAWN`,
-`IAM.USER_CREATED`, `IAM.GRANT_ADDED`, `IAM.GRANT_REVOKED`, `IAM.ROLE_CLONED`. Payloads carry IDs only.
+`IAM.USER_CREATED`, `IAM.GRANT_ADDED`, `IAM.GRANT_REVOKED`, `IAM.ROLE_CLONED`,
+`IAM.SESSION_STARTED`, `IAM.SESSION_REVOKED`. Payloads carry IDs only.
 
 **Role:** `PADM` Platform administrator (governance level 1).
 
