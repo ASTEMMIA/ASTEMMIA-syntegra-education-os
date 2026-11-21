@@ -6,7 +6,16 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, Index, Integer, LargeBinary, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    ForeignKey,
+    Index,
+    Integer,
+    LargeBinary,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from syntegra.core.clock import utcnow
@@ -124,3 +133,50 @@ class IdempotencyRecord(Base):
     status_code: Mapped[int] = mapped_column(Integer, nullable=False)
     response_body: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
+
+
+class IdSequence(Base):
+    """Gap-tolerant, never-reused counters for human-facing IDs (INS-, LRN-, STF-; §7.1)."""
+
+    __tablename__ = "id_sequence"
+    __table_args__ = {"schema": "ops"}  # noqa: RUF012 - SQLAlchemy declarative attribute
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(32), primary_key=True)
+    last_value: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+
+
+class BulkJob(Base):
+    """A bulk operation: preview → validate → confirm → execute → report (§10.4, §14.3)."""
+
+    __tablename__ = "bulk_job"
+    __table_args__ = (
+        Index(None, "tenant_id", "created_at"),
+        {"schema": "ops"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    scope_node_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)  # previewed | committed
+    source_name: Mapped[str | None] = mapped_column(String(255))
+    summary: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    created_by: Mapped[uuid.UUID | None]
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
+    committed_by: Mapped[uuid.UUID | None]
+    committed_at: Mapped[datetime | None]
+
+
+class BulkJobRow(Base):
+    __tablename__ = "bulk_job_row"
+    __table_args__ = {"schema": "ops"}  # noqa: RUF012 - SQLAlchemy declarative attribute
+
+    job_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ops.bulk_job.id"), primary_key=True)
+    row_no: Mapped[int] = mapped_column(Integer, primary_key=True)
+    data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False
+    )  # valid | error | created | skipped
+    messages: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    result_id: Mapped[uuid.UUID | None]

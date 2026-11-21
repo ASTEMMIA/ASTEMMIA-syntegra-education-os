@@ -12,6 +12,7 @@ from sqlalchemy.engine import Connection
 
 import syntegra.governance.models
 import syntegra.iam.models
+import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401
 from syntegra.platform.db import SCHEMAS, Base, make_engine
 from syntegra.platform.settings import get_settings

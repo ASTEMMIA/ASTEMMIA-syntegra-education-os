@@ -40,6 +40,30 @@ CREATE INDEX ix_audit_event_tenant_id_actor_id_occurred_at ON ops.audit_event (t
 
 CREATE INDEX ix_audit_event_tenant_id_entity_type_entity_id ON ops.audit_event (tenant_id, entity_type, entity_id);
 
+CREATE TABLE ops.bulk_job (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	kind VARCHAR(32) NOT NULL, 
+	status VARCHAR(16) NOT NULL, 
+	source_name VARCHAR(255), 
+	summary JSON NOT NULL, 
+	created_by BINARY(16), 
+	created_at DATETIME(6) NOT NULL, 
+	committed_by BINARY(16), 
+	committed_at DATETIME(6), 
+	CONSTRAINT pk_bulk_job PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_bulk_job_tenant_id_created_at ON ops.bulk_job (tenant_id, created_at);
+
+CREATE TABLE ops.id_sequence (
+	tenant_id BINARY(16) NOT NULL, 
+	name VARCHAR(32) NOT NULL, 
+	`last_value` BIGINT NOT NULL, 
+	CONSTRAINT pk_id_sequence PRIMARY KEY (tenant_id, name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE ops.idempotency_record (
 	id BINARY(16) NOT NULL, 
 	tenant_id BINARY(16) NOT NULL, 
@@ -75,3 +99,14 @@ CREATE TABLE ops.outbox_event (
 CREATE INDEX ix_outbox_event_aggregate_type_aggregate_id ON ops.outbox_event (aggregate_type, aggregate_id);
 
 CREATE INDEX ix_outbox_event_published_at_id ON ops.outbox_event (published_at, id);
+
+CREATE TABLE ops.bulk_job_row (
+	job_id BINARY(16) NOT NULL, 
+	row_no INTEGER NOT NULL, 
+	data JSON NOT NULL, 
+	status VARCHAR(16) NOT NULL, 
+	messages JSON NOT NULL, 
+	result_id BINARY(16), 
+	CONSTRAINT pk_bulk_job_row PRIMARY KEY (job_id, row_no), 
+	CONSTRAINT fk_bulk_job_row_job_id_bulk_job FOREIGN KEY(job_id) REFERENCES ops.bulk_job (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

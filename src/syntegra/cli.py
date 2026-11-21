@@ -15,6 +15,7 @@ from datetime import date
 
 import syntegra.governance.models
 import syntegra.iam.models
+import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401
 from syntegra.core.audit import ChainBreak
 from syntegra.core.context import RequestContext, use_context
@@ -179,6 +180,39 @@ async def seed_asubeb(platform_code: str, admin_login: str | None) -> dict[str, 
     }
 
 
+async def import_schools(text: str, source_name: str, tenant_code: str, commit: bool) -> int:
+    """Preview (and with --commit, register) a CSV list of schools under a board (ADR-009)."""
+    from syntegra.institutions import api as institutions
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        board = await governance.tenant_by_code(session, tenant_code)
+        if board is None:
+            raise SystemExit(f"organisation {tenant_code} not found: run seed-asubeb first")
+        with use_context(
+            RequestContext(
+                board.id, board.root_scope_node_id, None, system=True, purpose="school-import"
+            )
+        ):
+            job_id = await institutions.preview_import(session, text, source_name=source_name)
+            job, rows = await institutions.get_job(session, job_id)
+            print(json.dumps(job.summary, indent=2))
+            for r in [r for r in rows if r.status == "error"][:50]:
+                print(f"row {r.row_no}: " + "; ".join(r.messages))
+            if commit:
+                summary = await institutions.commit_import(
+                    session, job_id, managing_body=board.name[:64]
+                )
+                print(f"registered {summary['created']} schools, skipped {summary['skipped']}")
+            else:
+                print("preview only: nothing registered.")
+                print("Run again with --commit to register the valid rows.")
+    await engine.dispose()
+    return 0
+
+
 async def relay(once: bool) -> None:
     settings = get_settings()
     engine = make_engine(settings.database_url)
@@ -220,6 +254,12 @@ def main() -> None:
     a = sub.add_parser("seed-asubeb", help="create ASUBEB and its 17 LGEAs (ADR-009)")
     a.add_argument("--platform-code", default="SYNTEGRA")
     a.add_argument("--admin", help="login for an ASUBEB administrator (state officer role)")
+    imp = sub.add_parser("import-schools", help="preview or register a CSV list of schools")
+    imp.add_argument("csv_path")
+    imp.add_argument("--tenant-code", default=ASUBEB_CODE)
+    imp.add_argument(
+        "--commit", action="store_true", help="register the valid rows (default: preview only)"
+    )
     r = sub.add_parser("relay")
     r.add_argument("--once", action="store_true")
     v = sub.add_parser("verify-audit")
@@ -235,6 +275,14 @@ def main() -> None:
         )
     elif args.cmd == "seed-asubeb":
         print(json.dumps(asyncio.run(seed_asubeb(args.platform_code, args.admin)), indent=2))
+    elif args.cmd == "import-schools":
+        from pathlib import Path
+
+        csv_file = Path(args.csv_path)
+        text = csv_file.read_text(encoding="utf-8-sig")
+        raise SystemExit(
+            asyncio.run(import_schools(text, csv_file.name, args.tenant_code, args.commit))
+        )
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))
     elif args.cmd == "verify-audit":

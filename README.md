@@ -10,6 +10,7 @@ depends on these packages.
 | `syntegra.governance` | §2, §11.2, §29 | Tenants and the 10-level scope hierarchy (materialised path plus `scope_closure`), configuration resolved nearest-scope-wins with locks (P4), and the **policy rule DSL**: a sandboxed AST compiler with publish-time tests, tighten-never-relax checks and conflict detection |
 | `syntegra.iam` | §8.1–8.2, §21 | The §21 role matrix as data. Grants are role × scope × validity × clearance cap. Decisions are the union over ancestor scopes. Custom roles can never exceed their creator. |
 | `syntegra.mdm` | §4, §6.2, §8.1, §16.3 | **Person 360**: one record per human, with explainable duplicate matching (name variants, swapped names or dates, shared IDs and phones), reversible merges with source-trust survivorship, AES-256-GCM-encrypted national IDs found by blind index, purpose-bound audited reveal, and a data-quality score |
+| `syntegra.institutions` | §4, §10.4 | **School register**: each government school under its LGEA in ASUBEB (ADR-009), with bulk import from CSV (preview → commit) and a duplicate check. See the [import guide](docs/guides/school-import.md). |
 | `syntegra.workflow` | §22 | Versioned definitions, transitions, four-eyes approval, working-day SLAs with a reminder at 75% |
 | `syntegra.platform` | §10.3, §11 | MySQL types (BINARY(16) UUIDs, DATETIME(6) UTC), the §6.1 standard columns, **tenant and scope isolation on every ORM query**, refusal of cross-tenant and out-of-scope writes, P7 immutability, **automatic hash-chained audit in the same transaction**, and the transactional outbox with an ordered relay |
 | `syntegra.web` | §10.4 | FastAPI: Problem Details with `next_action`, required `Idempotency-Key` on POST, cursor pagination, permission checks |
@@ -34,6 +35,7 @@ uv run alembic upgrade head
 SYNTEGRA_TEST_DATABASE_URL=$SYNTEGRA_DATABASE_URL uv run pytest -q   # full suite on MySQL 9.7
 uv run python -m syntegra.cli bootstrap --admin admin@example.org
 uv run python -m syntegra.cli seed-asubeb --admin admin@asubeb.example   # ASUBEB + 17 LGEAs (ADR-009)
+uv run python -m syntegra.cli import-schools schools.csv [--commit]     # register schools from CSV
 uv run uvicorn syntegra.web.app:create_app --factory --reload        # http://localhost:8000/docs
 ```
 

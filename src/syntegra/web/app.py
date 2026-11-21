@@ -9,13 +9,14 @@ from fastapi import FastAPI
 
 import syntegra.governance.models
 import syntegra.iam.models
+import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401
 from syntegra.platform.crypto import build_field_crypto
 from syntegra.platform.db import make_engine, make_sessionmaker
 from syntegra.platform.settings import Settings, get_settings
 from syntegra.web import problems
 from syntegra.web.auth import build_keys, token_policy
-from syntegra.web.routers import auth, governance, health, iam, persons
+from syntegra.web.routers import auth, governance, health, iam, institutions, persons
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -60,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(governance.router)
     app.include_router(iam.router)
     app.include_router(persons.router)
+    app.include_router(institutions.router)
     return app
 
 

@@ -45,9 +45,11 @@ Syntegra (global) → Nigeria (country tenant) → ASUBEB (regional tenant, leve
   register and bulk import, which are the next work. School counts are taken from that list, not assumed.
 
 ## Next
-1. **School register (Institution 360):** a school's code, LGA, levels, head and contact. Each school's
-   scope node and institution record are created together.
-2. **Bulk import** of schools, staff and learners through preview → validate → confirm → execute → report
-   (§10.4, §16.5), with the duplicate check run on every row.
+1. **School register (Institution 360):** done. `org.institution` and `org.institution_level` (migration
+   0004). Each school's scope node and record are created together, with an `INS-NG-NNNNNN` ID from a
+   locked, never-reused sequence and an `INS.REGISTERED` event.
+2. **Bulk import:** done for schools (`ops.bulk_job`, preview → commit, CLI `import-schools`;
+   [guide](../guides/school-import.md)). Staff and learner imports follow the same pattern, with the
+   duplicate check on every learner row.
 3. **Bulk staff grants** from the staff list (heads, teachers, registrars, LGEA officers).
 4. **Rollout waves** by LGEA, tracked on the state command centre.
