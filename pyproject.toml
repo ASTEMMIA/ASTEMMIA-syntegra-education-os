@@ -15,6 +15,9 @@ dependencies = [
     "aiosqlite>=0.20",
     "orjson>=3.10",
     "pyjwt>=2.10",
+    "jellyfish>=1.3",
+    "phonenumbers>=9.0",
+    "email-validator>=2.4",
 ]
 
 [dependency-groups]
@@ -61,7 +64,7 @@ packages = ["syntegra"]
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["syntegra.core.*", "syntegra.governance.*", "syntegra.iam.*", "syntegra.workflow.*"]
+module = ["syntegra.core.*", "syntegra.governance.*", "syntegra.iam.*", "syntegra.mdm.*", "syntegra.workflow.*"]
 strict = true
 
 [tool.coverage.run]
@@ -76,24 +79,24 @@ include_external_packages = true
 name = "core is the foundation and imports no domain package"
 type = "forbidden"
 source_modules = ["syntegra.core"]
-forbidden_modules = ["syntegra.governance", "syntegra.iam", "syntegra.workflow", "syntegra.platform", "syntegra.web"]
+forbidden_modules = ["syntegra.governance", "syntegra.iam", "syntegra.mdm", "syntegra.workflow", "syntegra.platform", "syntegra.web"]
 
 [[tool.importlinter.contracts]]
 name = "Domain packages never import the web layer (P9 / §10.2)"
 type = "forbidden"
-source_modules = ["syntegra.governance", "syntegra.iam", "syntegra.workflow", "syntegra.platform"]
+source_modules = ["syntegra.governance", "syntegra.iam", "syntegra.mdm", "syntegra.workflow", "syntegra.platform"]
 forbidden_modules = ["syntegra.web", "fastapi"]
 
 [[tool.importlinter.contracts]]
 name = "Domain layer is framework-free (ports and adapters, §10.1)"
 type = "forbidden"
-source_modules = ["syntegra.governance.domain", "syntegra.iam.domain", "syntegra.workflow.domain", "syntegra.core"]
+source_modules = ["syntegra.governance.domain", "syntegra.iam.domain", "syntegra.mdm.domain", "syntegra.workflow.domain", "syntegra.core"]
 forbidden_modules = ["sqlalchemy", "fastapi"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Cross-package access only through api and events (§10.2)"
 type = "forbidden"
-source_modules = ["syntegra.iam", "syntegra.workflow"]
+source_modules = ["syntegra.iam", "syntegra.mdm", "syntegra.workflow"]
 forbidden_modules = ["syntegra.governance.models", "syntegra.governance.policy"]
 allow_indirect_imports = true

@@ -10,7 +10,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 import syntegra.governance.models
-import syntegra.iam.models  # noqa: F401
+import syntegra.iam.models
+import syntegra.mdm.models  # noqa: F401
 from syntegra.core.context import RequestContext, use_context
 from syntegra.governance import api as governance
 from syntegra.governance.domain import GovernanceLevel, Ownership
@@ -68,6 +69,8 @@ class World:
     head_a: uuid.UUID
     teacher_a: uuid.UUID
     head_b: uuid.UUID
+    registrar_a: uuid.UUID
+    registrar_campus_2: uuid.UUID
 
     def ctx(
         self, tenant: uuid.UUID, scope: uuid.UUID, user: uuid.UUID | None = None
@@ -151,6 +154,8 @@ async def world(sm) -> World:
             ("head_a", a, "head@gcu.test", "HEAD", a.root_scope_node_id),
             ("teacher_a", a, "teacher@gcu.test", "TCH", c1.id),
             ("head_b", b, "head@academy.test", "HEAD", b.root_scope_node_id),
+            ("registrar_a", a, "registrar@gcu.test", "REG", a.root_scope_node_id),
+            ("registrar_campus_2", a, "annex.registrar@gcu.test", "REG", c2.id),
         ]:
             with use_context(
                 RequestContext(tenant.id, tenant.root_scope_node_id, None, system=True)

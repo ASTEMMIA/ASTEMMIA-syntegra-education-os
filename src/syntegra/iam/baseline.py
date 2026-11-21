@@ -83,6 +83,11 @@ PERMISSIONS: dict[str, PermissionDef] = {
         # Phase 0 platform permissions (ADR-004)
         PermissionDef("tenant:manage", "Tenants — create and configure", T.INTERNAL),
         PermissionDef("scope_node:manage", "Scope hierarchy — manage", T.INTERNAL),
+        # Person 360 (mdm, ADR-008). Revealing a national ID uses learner_national_id:reveal.
+        PermissionDef("person:view", "Person 360 — view", T.CONFIDENTIAL),
+        PermissionDef("person:create", "Person 360 — register", T.CONFIDENTIAL),
+        PermissionDef("person:edit", "Person 360 — edit", T.CONFIDENTIAL),
+        PermissionDef("person:merge", "Person 360 — resolve duplicates and merge", T.CONFIDENTIAL),
     ]
 }
 
@@ -126,8 +131,23 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
     },
     "FED": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
     "STA": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
-    "IADM": {"scope_node:manage": Cell.YES},
-    "HEAD": {"scope_node:manage": Cell.YES},
+    "IADM": {
+        "scope_node:manage": Cell.YES,
+        "person:view": Cell.YES,
+        "person:create": Cell.YES,
+        "person:edit": Cell.YES,
+        "person:merge": Cell.YES,
+    },
+    "HEAD": {"scope_node:manage": Cell.YES, "person:view": Cell.YES},
+    # Registrar is the Person 360 data steward (§4 "Registry officer", §16.1).
+    "REG": {
+        "person:view": Cell.YES,
+        "person:create": Cell.YES,
+        "person:edit": Cell.YES,
+        "person:merge": Cell.YES,
+    },
+    "TCH": {"person:view": Cell.OWN},
+    "DPO": {"person:view": Cell.YES},  # subject access requests (§8.4)
 }
 
 

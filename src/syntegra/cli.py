@@ -14,7 +14,8 @@ import json
 from datetime import date
 
 import syntegra.governance.models
-import syntegra.iam.models  # noqa: F401
+import syntegra.iam.models
+import syntegra.mdm.models  # noqa: F401
 from syntegra.core.audit import ChainBreak
 from syntegra.core.context import RequestContext, use_context
 from syntegra.governance import api as governance

@@ -123,6 +123,15 @@ def test_dev_login_route_absent_when_disabled():
         )
         .decode()
     )
-    app = create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem))
+    import base64
+    import os
+
+    keys = {
+        "field_kek_b64": base64.b64encode(os.urandom(32)).decode(),
+        "blind_index_key_b64": base64.b64encode(os.urandom(32)).decode(),
+    }
+    with pytest.raises(RuntimeError, match="FIELD_KEK"):  # field encryption keys are mandatory too
+        create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem))
+    app = create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys))
     paths = set(app.openapi()["paths"])
     assert "/v1/auth/dev-login" not in paths and "/v1/auth/refresh" in paths

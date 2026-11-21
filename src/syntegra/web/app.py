@@ -8,12 +8,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 import syntegra.governance.models
-import syntegra.iam.models  # noqa: F401
+import syntegra.iam.models
+import syntegra.mdm.models  # noqa: F401
+from syntegra.platform.crypto import build_field_crypto
 from syntegra.platform.db import make_engine, make_sessionmaker
 from syntegra.platform.settings import Settings, get_settings
 from syntegra.web import problems
 from syntegra.web.auth import build_keys, token_policy
-from syntegra.web.routers import auth, governance, health, iam
+from syntegra.web.routers import auth, governance, health, iam, persons
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -21,6 +23,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings.env in ("staging", "prod") and settings.dev_auth:
         raise RuntimeError("dev login must be disabled outside dev/test (SYNTEGRA_DEV_AUTH=false)")
     keys = build_keys(settings)  # refuses to start without a real key outside dev/test
+    field_crypto = build_field_crypto(
+        env=settings.env,
+        kek_b64=settings.field_kek_b64.get_secret_value() if settings.field_kek_b64 else None,
+        previous_keks_b64=settings.field_previous_keks_b64,
+        blind_index_key_b64=settings.blind_index_key_b64.get_secret_value()
+        if settings.blind_index_key_b64
+        else None,
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -40,6 +50,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     app.state.token_policy = token_policy(settings, keys)
+    app.state.field_crypto = field_crypto
     problems.install(app)
     app.include_router(health.router)
     app.include_router(auth.router)
@@ -48,6 +59,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(auth.dev_router)
     app.include_router(governance.router)
     app.include_router(iam.router)
+    app.include_router(persons.router)
     return app
 
 
