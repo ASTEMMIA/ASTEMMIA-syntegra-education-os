@@ -17,3 +17,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [010](ADR-010-abia-state-kindergarten-to-university.md) | One Abia State tenant, kindergarten to university: ASUBEB and the Ministry of Tertiary Education as scopes | Accepted |
 | [011](ADR-011-jurisdiction-structure-files.md) | Jurisdiction structure files: every state or country is data, not code | Accepted |
 | [012](ADR-012-tertiary-register.md) | One institution register, kindergarten to university: tertiary institutions under the Ministry | Accepted |
+| [013](ADR-013-institution-address.md) | Full postal address and postcode for every institution, formats from the structure file | Accepted |

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -27,11 +28,27 @@ class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+class AddressFormat(_Model):
+    """The country's postal address format."""
+
+    postcode_label: str = "postcode"
+    postcode_pattern: str | None = None  # regular expression, e.g. Nigeria's NIPOST "^[0-9]{6}$"
+    postcode_example: str | None = None
+
+    @field_validator("postcode_pattern")
+    @classmethod
+    def _compiles(cls, v: str | None) -> str | None:
+        if v is not None:
+            re.compile(v)
+        return v
+
+
 class Country(_Model):
     code: str = Field(pattern=r"^[A-Z]{2}$")  # ISO 3166-1 alpha-2, also the tenant code
     name: str
     time_zone: str
     label: str | None = None
+    address: AddressFormat = AddressFormat()
 
 
 class Jurisdiction(_Model):
@@ -83,6 +100,8 @@ class Structure(_Model):
     # Local government areas (or districts, counties…) used to check where an institution is.
     # Set as `location.areas` on the jurisdiction; independent of any body's units.
     areas: list[str] = []
+    # Address parts every institution must have here: address_line1, address_line2, town, postcode.
+    address_required: list[Literal["address_line1", "address_line2", "town", "postcode"]] = []
     bodies: list[Body] = Field(min_length=1)
 
     @field_validator("areas")

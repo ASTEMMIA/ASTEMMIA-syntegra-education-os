@@ -9,17 +9,18 @@ from syntegra.governance.structure import load_structure
 from syntegra.institutions import api as inst
 from syntegra.institutions.models import Institution
 
-TERTIARY_CSV = """name,type,lga,levels,government_code,town
-TEST State University,University,Isuikwuato,Degree; Postgraduate,,Uturu
-TEST State Polytechnic,Poly,Aba South L.G.A.,ND/HND,,Aba
-TEST College of Education,COE,Umuahia North,NCE; Degree,,Umuahia
-TEST College of Health Technology,College of Health,Ohafia,ND,,Ohafia
-TEST Technical College,Technical College,Umuahia South,NTC/NBC,,Umuahia
-TEST Unknown Kind,Academy,Ohafia,Degree,,
-TEST Wrong Place Poly,Polytechnic,Lagos Island,ND,,
-TEST Primary School,School,Ohafia,Primary,,
-TEST Poly No Type,,Ohafia,HND,,
+TERTIARY_CSV = """name,type,lga,levels,government_code,address_line1,town,postcode
+TEST State University,University,Isuikwuato,Degree; Postgraduate,,1 University Road,Uturu,440001
+TEST State Polytechnic,Poly,Aba South L.G.A.,ND/HND,,2 Polytechnic Road,Aba,450001
+TEST College of Education,COE,Umuahia North,NCE; Degree,,3 College Road,Umuahia,440001
+TEST College of Health Technology,College of Health,Ohafia,ND,,4 Health Road,Ohafia,440001
+TEST Technical College,Technical College,Umuahia South,NTC/NBC,,5 Technical Road,Umuahia,440001
+TEST Unknown Kind,Academy,Ohafia,Degree,,6 Road,Ohafia,440001
+TEST Wrong Place Poly,Polytechnic,Lagos Island,ND,,7 Road,Lagos,100001
+TEST Primary School,School,Ohafia,Primary,,8 Road,Ohafia,440001
+TEST Poly No Type,,Ohafia,HND,,9 Road,Ohafia,440001
 """
+ADDR = ",1 Main Road,Ohafia,440001"
 
 
 async def _abia(sm, world):
@@ -76,8 +77,8 @@ async def test_asubeb_refuses_tertiary_and_ministry_refuses_schools(sm, world):
                 s,
                 await inst.preview_import(
                     s,
-                    "name,type,lga,levels\n"
-                    "TEST Poly,Polytechnic,Ohafia,ND\nTEST Pry,,Ohafia,Primary\n",
+                    "name,type,lga,levels,address_line1,town,postcode\n"
+                    f"TEST Poly,Polytechnic,Ohafia,ND{ADDR}\nTEST Pry,,Ohafia,Primary{ADDR}\n",
                     source_name=None,
                 ),
             )
@@ -93,7 +94,10 @@ async def test_school_and_university_in_one_lga_stay_under_their_own_bodies(sm, 
             await inst.commit_import(
                 s,
                 await inst.preview_import(
-                    s, "name,lga,levels\nTEST Pry Ohafia,Ohafia,Primary\n", source_name=None
+                    s,
+                    "name,lga,levels,address_line1,town,postcode\n"
+                    f"TEST Pry Ohafia,Ohafia,Primary{ADDR}\n",
+                    source_name=None,
                 ),
                 managing_body="ASUBEB",
             )
@@ -104,7 +108,8 @@ async def test_school_and_university_in_one_lga_stay_under_their_own_bodies(sm, 
                 s,
                 await inst.preview_import(
                     s,
-                    "name,type,lga,levels\nTEST Poly Ohafia,Polytechnic,Ohafia,ND\n",
+                    "name,type,lga,levels,address_line1,town,postcode\n"
+                    f"TEST Poly Ohafia,Polytechnic,Ohafia,ND{ADDR}\n",
                     source_name=None,
                 ),
                 managing_body="Ministry",

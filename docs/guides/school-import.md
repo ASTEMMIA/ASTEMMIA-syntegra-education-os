@@ -14,7 +14,10 @@ your active scope, when you upload. Load them from one spreadsheet saved as **CS
 | `lga` | yes | Umuahia North | One of Abia's 17 LGAs. "Umuahia North LGEA" and "umuahia north l.g.a." also work. |
 | `levels` | yes | Primary · JSS; SSS · ND/HND · Degree; Postgraduate | Schools (ASUBEB): ECCDE, Primary, JSS, SSS. Tertiary (Ministry): TVET, NCE, ND, HND, Degree, Postgraduate. "Pry", "Secondary", "ND/HND", "B.Sc", "PGD" and "NTC/NBC" are understood. |
 | `government_code` | no | ASB/UN/001 | ASUBEB's own school number. Strongly recommended: it is the surest way to avoid duplicates. |
-| `town`, `address` | no | Ndume | |
+| `address_line1` | **yes** in Abia | 12 Market Road | Street or plot. A column headed "Address" or "Street" also works. |
+| `address_line2` | no | Off Amaekpu Junction | Landmark, PMB, area. |
+| `town` | **yes** in Abia | Ohafia | A column headed "City" also works. |
+| `postcode` | **yes** in Abia | 440001 | The 6-digit NIPOST postcode. "440 001" is accepted. A column headed "Postal Code" also works. |
 | `phone`, `email` | no | 0803 123 4567 | Phone numbers are stored in international form (+234…). |
 | `latitude`, `longitude` | no | 5.5320, 7.4860 | Both or neither. |
 
@@ -29,6 +32,9 @@ the Ministry as your active scope.
 * `lga` is where the institution is located, checked against Abia's 17 LGAs.
 * Each body registers only its own levels: ASUBEB rejects a polytechnic row, and the Ministry rejects a
   primary-school row, with the reason given.
+
+Every registered institution gets a **full one-line address**, for example
+*12 Market Road, Off Amaekpu Junction, Ohafia, Abia State 440001, Nigeria*.
 
 ## How the import works
 

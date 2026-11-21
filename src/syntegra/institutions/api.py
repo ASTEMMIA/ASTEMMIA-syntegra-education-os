@@ -22,16 +22,19 @@ from syntegra.governance import api as governance
 from syntegra.governance.domain import GovernanceLevel
 from syntegra.institutions import events
 from syntegra.institutions.domain import (
+    COLUMN_ALIASES,
     LEVEL_LABEL,
     MAX_ROWS,
     SCHOOL_LEVELS,
     TEMPLATE_COLUMNS,
     TYPE_LABEL,
+    AddressRules,
     CleanRow,
     InstitutionType,
     Level,
     Placement,
     RowResult,
+    compose_address,
     fold,
     mark_duplicates,
     summarise,
@@ -60,45 +63,63 @@ class InstitutionView:
     parent_scope_id: uuid.UUID
     scope_node_id: uuid.UUID
     levels: list[str]
+    address_line1: str | None
+    address_line2: str | None
     town: str | None
+    postcode: str | None
+    full_address: str
     status: str
 
 
 def template_csv() -> str:
+    """Header plus two example rows (one school, one tertiary institution), built by column
+    name so the examples always line up with the template."""
+    examples = [
+        {
+            "name": "Community Primary School Ndume",
+            "lga": "Umuahia North",
+            "levels": "Primary",
+            "address_line1": "1 School Road",
+            "address_line2": "Off Ndume Market",
+            "town": "Ndume",
+            "postcode": "440001",
+        },
+        {
+            "name": "Example State Polytechnic",
+            "type": "Polytechnic",
+            "lga": "Aba South",
+            "levels": "ND; HND",
+            "address_line1": "1 Polytechnic Road",
+            "town": "Aba",
+            "postcode": "450001",
+        },
+    ]
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(TEMPLATE_COLUMNS)
-    w.writerow(
-        [
-            "Community Primary School Ndume",
-            "",
-            "Umuahia North",
-            "Primary",
-            "",
-            "Ndume",
-            "",
-            "",
-            "",
-            "",
-            "",
-        ]
-    )
-    w.writerow(
-        [
-            "Example State Polytechnic",
-            "Polytechnic",
-            "Aba South",
-            "ND; HND",
-            "",
-            "Aba",
-            "",
-            "",
-            "",
-            "",
-            "",
-        ]
-    )
+    for ex in examples:
+        w.writerow([ex.get(c, "") for c in TEMPLATE_COLUMNS])
     return out.getvalue()
+
+
+ADDRESS_SETTING = "address.rules"
+
+
+async def address_rules(session: AsyncSession) -> AddressRules:
+    """Postcode format and required address parts for the caller's jurisdiction (P4)."""
+    value = await governance.resolve_config(
+        session, current_context().scope_node_id, ADDRESS_SETTING
+    )
+    if not value:
+        return AddressRules()
+    return AddressRules(
+        postcode_pattern=value.get("postcode_pattern"),
+        postcode_label=value.get("postcode_label") or "postcode",
+        postcode_example=value.get("postcode_example"),
+        required=frozenset(value.get("required") or []),
+        state=value.get("state"),
+        country=value.get("country"),
+    )
 
 
 async def placement(session: AsyncSession) -> Placement:
@@ -180,8 +201,10 @@ async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | No
         institution_type=c.institution_type.value,
         ownership="public",
         managing_body=managing_body,
+        address_line1=c.address_line1,
+        address_line2=c.address_line2,
         town=c.town,
-        address=c.address,
+        postcode=c.postcode,
         phone=c.phone,
         email=c.email,
         latitude=Decimal(str(c.latitude)) if c.latitude is not None else None,
@@ -219,7 +242,13 @@ async def register_institution(
     managing_body: str | None = None,
 ) -> InstitutionView:
     """Register one institution (same validation as an import row)."""
-    result = validate_row(1, raw, await placement(session), allowed=await allowed_levels(session))
+    result = validate_row(
+        1,
+        raw,
+        await placement(session),
+        allowed=await allowed_levels(session),
+        address=await address_rules(session),
+    )
     codes, names = await _existing(session)
     mark_duplicates([result], existing_codes=codes, existing_names=names)
     if result.clean is None:
@@ -240,7 +269,12 @@ def _parse_csv(text: str) -> list[dict[str, str]]:
         raise ValidationFailed(
             "the file is empty", next_action="Download the template and fill it in."
         )
-    headers = {h.strip().lower(): h for h in reader.fieldnames if h}
+    headers: dict[str, str] = {}
+    for h in reader.fieldnames:
+        if not h:
+            continue
+        key = h.strip().lower()
+        headers.setdefault(COLUMN_ALIASES.get(key, key), h)
     missing = [c for c in ("name", "lga", "levels") if c not in headers]
     if missing:
         raise ValidationFailed(
@@ -268,7 +302,11 @@ async def preview_import(
     where = await placement(session)
     allowed = await allowed_levels(session)
     # Row 1 is the header, so data rows are numbered from 2 as in the spreadsheet.
-    results = [validate_row(i, raw, where, allowed=allowed) for i, raw in enumerate(rows, start=2)]
+    rules = await address_rules(session)
+    results = [
+        validate_row(i, raw, where, allowed=allowed, address=rules)
+        for i, raw in enumerate(rows, start=2)
+    ]
     codes, names = await _existing(session)
     mark_duplicates(results, existing_codes=codes, existing_names=names)
     job = BulkJob(
@@ -335,7 +373,10 @@ async def commit_import(
     allowed = await allowed_levels(session)
     candidates = [r for r in rows if r.status == "valid"]
     rechecked = [
-        validate_row(r.row_no, _as_raw(r.data), where, allowed=allowed) for r in candidates
+        validate_row(
+            r.row_no, _as_raw(r.data), where, allowed=allowed, address=await address_rules(session)
+        )
+        for r in candidates
     ]
     codes, names = await _existing(session)
     mark_duplicates(rechecked, existing_codes=codes, existing_names=names)
@@ -381,6 +422,7 @@ async def _views(session: AsyncSession, items: list[Institution]) -> list[Instit
         ).scalars():
             levels[lv.institution_id].append(lv.level)
     order = [lv.value for lv in Level]
+    rules = await address_rules(session) if items else AddressRules()
     return [
         InstitutionView(
             i.id,
@@ -392,7 +434,19 @@ async def _views(session: AsyncSession, items: list[Institution]) -> list[Instit
             i.parent_scope_id,
             i.scope_node_id,
             [LEVEL_LABEL[Level(x)] for x in sorted(levels[i.id], key=order.index)],
+            i.address_line1,
+            i.address_line2,
             i.town,
+            i.postcode,
+            compose_address(
+                line1=i.address_line1,
+                line2=i.address_line2,
+                town=i.town,
+                location=i.location,
+                postcode=i.postcode,
+                state=rules.state,
+                country=rules.country,
+            ),
             i.status,
         )
         for i in items

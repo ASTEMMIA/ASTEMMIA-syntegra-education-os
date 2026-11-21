@@ -729,6 +729,18 @@ async def apply_structure(
             created.append(code)
             return made.id
 
+        address_rules = {
+            "postcode_label": st.country.address.postcode_label,
+            "postcode_pattern": st.country.address.postcode_pattern,
+            "postcode_example": st.country.address.postcode_example,
+            "required": list(st.address_required),
+            "state": st.jurisdiction.name if st.jurisdiction else None,
+            "country": st.country.name,
+        }
+        root = tenant.root_scope_node_id
+        if await resolve_config(session, root, "address.rules") != address_rules:
+            await set_config(session, scope_node_id=root, key="address.rules", value=address_rules)
+            created.append("address rules")
         if (
             st.areas
             and await resolve_config(session, tenant.root_scope_node_id, "location.areas") is None

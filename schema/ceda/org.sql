@@ -14,7 +14,9 @@ CREATE TABLE org.institution (
 	managing_body VARCHAR(64), 
 	status VARCHAR(8) NOT NULL, 
 	town VARCHAR(100), 
-	address VARCHAR(255), 
+	address_line1 VARCHAR(255), 
+	address_line2 VARCHAR(255), 
+	postcode VARCHAR(16), 
 	phone VARCHAR(20), 
 	email VARCHAR(254), 
 	latitude NUMERIC(9, 6), 
@@ -43,6 +45,8 @@ CREATE TABLE org.institution (
 CREATE INDEX ix_institution_tenant_id_location_key ON org.institution (tenant_id, location_key);
 
 CREATE INDEX ix_institution_tenant_id_parent_scope_id ON org.institution (tenant_id, parent_scope_id);
+
+CREATE INDEX ix_institution_tenant_id_postcode ON org.institution (tenant_id, postcode);
 
 CREATE TABLE org.institution_level (
 	institution_id BINARY(16) NOT NULL, 

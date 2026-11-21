@@ -24,7 +24,9 @@ class SchoolBody(Model):
     levels: str = Field(min_length=2, max_length=64, examples=["Primary", "JSS; SSS"])
     government_code: str | None = Field(default=None, max_length=40)
     town: str | None = Field(default=None, max_length=100)
-    address: str | None = Field(default=None, max_length=255)
+    address_line1: str | None = Field(default=None, max_length=255, examples=["12 Market Road"])
+    address_line2: str | None = Field(default=None, max_length=255)
+    postcode: str | None = Field(default=None, max_length=16, examples=["440001"])
     phone: str | None = Field(default=None, max_length=32)
     email: str | None = Field(default=None, max_length=254)
     latitude: float | None = None
@@ -41,7 +43,16 @@ def _view(v: inst.InstitutionView) -> dict[str, Any]:
         "lga": v.location,
         "parent_scope_id": str(v.parent_scope_id),
         "levels": v.levels,
+        "address": {
+            "line1": v.address_line1,
+            "line2": v.address_line2,
+            "town": v.town,
+            "lga": v.location,
+            "postcode": v.postcode,
+            "full": v.full_address,
+        },
         "town": v.town,
+        "postcode": v.postcode,
         "status": v.status,
         "scope_node_id": str(v.scope_node_id),
     }

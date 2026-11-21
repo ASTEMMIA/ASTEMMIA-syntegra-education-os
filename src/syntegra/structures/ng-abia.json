@@ -4,7 +4,12 @@
     "code": "NG",
     "name": "Nigeria",
     "time_zone": "Africa/Lagos",
-    "label": "Federal Ministry of Education"
+    "label": "Federal Ministry of Education",
+    "address": {
+      "postcode_label": "postcode",
+      "postcode_pattern": "^[0-9]{6}$",
+      "postcode_example": "440001"
+    }
   },
   "jurisdiction": {
     "code": "NG-AB",
@@ -29,6 +34,11 @@
     "Umuahia North",
     "Umuahia South",
     "Umu Nneochi"
+  ],
+  "address_required": [
+    "address_line1",
+    "town",
+    "postcode"
   ],
   "bodies": [
     {

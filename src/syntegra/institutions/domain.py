@@ -161,14 +161,89 @@ TEMPLATE_COLUMNS = (
     "lga",
     "levels",
     "government_code",
+    "address_line1",
+    "address_line2",
     "town",
-    "address",
+    "postcode",
     "phone",
     "email",
     "latitude",
     "longitude",
 )
 REQUIRED = ("name", "lga", "levels")
+# Header spellings found in real spreadsheets, mapped to template columns.
+COLUMN_ALIASES = {
+    "address": "address_line1",
+    "street": "address_line1",
+    "street address": "address_line1",
+    "address 1": "address_line1",
+    "address line 1": "address_line1",
+    "address 2": "address_line2",
+    "address line 2": "address_line2",
+    "city": "town",
+    "town/city": "town",
+    "post code": "postcode",
+    "postal code": "postcode",
+    "postal_code": "postcode",
+    "zip": "postcode",
+    "zip code": "postcode",
+    "lga name": "lga",
+    "local government area": "lga",
+}
+ADDRESS_FIELDS = ("address_line1", "address_line2", "town", "postcode")
+ADDRESS_LABEL = {
+    "address_line1": "address line 1",
+    "address_line2": "address line 2",
+    "town": "town",
+    "postcode": "postcode",
+}
+
+
+@dataclass(frozen=True)
+class AddressRules:
+    """Country-specific address format and which parts a jurisdiction requires (P4).
+
+    Set from the structure file; Nigeria: 6-digit NIPOST postcodes.
+    """
+
+    postcode_pattern: str | None = None
+    postcode_label: str = "postcode"
+    postcode_example: str | None = None
+    required: frozenset[str] = frozenset()
+    state: str | None = None  # e.g. "Abia State", added to the composed address
+    country: str | None = None  # e.g. "Nigeria"
+
+
+def normalize_postcode(value: str) -> str:
+    return re.sub(r"\s+", " ", value.strip().upper())
+
+
+def compose_address(
+    *,
+    line1: str | None,
+    line2: str | None,
+    town: str | None,
+    location: str | None,
+    postcode: str | None,
+    state: str | None,
+    country: str | None,
+) -> str:
+    """One-line postal address: '12 Market Road, Ohafia, Ohafia LGA, Abia State 440001, Nigeria'."""
+    parts = [p for p in (line1, line2, town) if p]
+    if location and location != town:
+        parts.append(
+            f"{location} LGA" if not location.upper().endswith(("LGA", "LGEA")) else location
+        )
+    elif location and not parts:
+        parts.append(location)
+    tail = " ".join(p for p in (state, postcode) if p)
+    if tail:
+        parts.append(tail)
+    if country:
+        parts.append(country)
+    return ", ".join(parts)
+
+
 MAX_ROWS = 10_000
 
 
@@ -236,8 +311,10 @@ class CleanRow:
     institution_type: InstitutionType
     levels: list[Level]
     government_code: str | None = None
+    address_line1: str | None = None
+    address_line2: str | None = None
     town: str | None = None
-    address: str | None = None
+    postcode: str | None = None
     phone: str | None = None
     email: str | None = None
     latitude: float | None = None
@@ -251,8 +328,10 @@ class CleanRow:
             "parent_scope_id": self.parent_scope_id,
             "levels": [lv.value for lv in self.levels],
             "government_code": self.government_code,
+            "address_line1": self.address_line1,
+            "address_line2": self.address_line2,
             "town": self.town,
-            "address": self.address,
+            "postcode": self.postcode,
             "phone": self.phone,
             "email": self.email,
             "latitude": self.latitude,
@@ -310,8 +389,11 @@ def validate_row(
     *,
     default_region: str = "NG",
     allowed: frozenset[Level] | None = None,
+    address: AddressRules | None = None,
 ) -> RowResult:
-    """``allowed`` restricts the levels the body registers (setting ``register.levels``)."""
+    """``allowed`` restricts the levels the body registers (setting ``register.levels``);
+    ``address`` sets the postcode format and required address parts (setting ``address.rules``)."""
+    rules = address or AddressRules()
     data = {k: (raw.get(k) or "").strip() for k in TEMPLATE_COLUMNS}
     errors: list[str] = []
     for col in REQUIRED:
@@ -359,6 +441,27 @@ def validate_row(
         except ValueError:
             errors.append("latitude and longitude must both be numbers in range")
             lat = lng = None
+    for part in ADDRESS_FIELDS:
+        if part in rules.required and not data[part]:
+            errors.append(f"{ADDRESS_LABEL[part]} is required")
+    for part, limit in (("address_line1", 255), ("address_line2", 255), ("town", 100)):
+        if len(data[part]) > limit:
+            errors.append(f"{ADDRESS_LABEL[part]} must be at most {limit} characters")
+    postcode = normalize_postcode(data["postcode"]) if data["postcode"] else None
+    if postcode and rules.postcode_pattern:
+        # "440 001" is a correct Nigerian code typed with a space: try it without spaces too.
+        # A format whose codes contain a space (UK "SW1A 1AA") matches as typed.
+        pattern = rules.postcode_pattern
+        match = next(
+            (c for c in (postcode, postcode.replace(" ", "")) if re.fullmatch(pattern, c)), None
+        )
+        if match is None:
+            example = f", e.g. {rules.postcode_example}" if rules.postcode_example else ""
+            typed = data["postcode"]
+            errors.append(
+                f"{rules.postcode_label} '{typed}' is not in the expected format{example}"
+            )
+        postcode = match
     code = _blank(data["government_code"])
     if code and not re.fullmatch(r"[A-Za-z0-9/\-. ]{2,40}", code):
         errors.append("government code has unexpected characters")
@@ -372,8 +475,10 @@ def validate_row(
             institution_type=kind,
             levels=levels,
             government_code=code.upper() if code else None,
+            address_line1=_blank(data["address_line1"]),
+            address_line2=_blank(data["address_line2"]),
             town=_blank(data["town"]),
-            address=_blank(data["address"]),
+            postcode=postcode,
             phone=phone,
             email=email.lower() if email else None,
             latitude=lat,
