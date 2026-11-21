@@ -34,7 +34,7 @@ export SYNTEGRA_DATABASE_URL=mysql+asyncmy://syntegra:syntegra@127.0.0.1:3306/
 uv run alembic upgrade head
 SYNTEGRA_TEST_DATABASE_URL=$SYNTEGRA_DATABASE_URL uv run pytest -q   # full suite on MySQL 9.7
 uv run python -m syntegra.cli bootstrap --admin admin@example.org
-uv run python -m syntegra.cli seed-abia --admin admin@abia.example       # Abia State: ASUBEB (+17 LGEAs) and Tertiary Board (ADR-010)
+uv run python -m syntegra.cli seed-structure ng-abia --admin admin@abia.example   # Abia State from its structure file (ADR-010, ADR-011)
 uv run python -m syntegra.cli import-schools schools.csv [--commit]     # register schools from CSV
 uv run uvicorn syntegra.web.app:create_app --factory --reload        # http://localhost:8000/docs
 ```

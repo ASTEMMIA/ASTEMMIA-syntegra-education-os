@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import uuid
 from datetime import date
 
 import syntegra.governance.models
@@ -76,142 +75,62 @@ async def bootstrap(admin_login: str, code: str, name: str, region: str) -> dict
     }
 
 
-# The 17 local government areas of Abia State; each has a Local Government Education Authority.
-ABIA_LGAS = (
-    "Aba North",
-    "Aba South",
-    "Arochukwu",
-    "Bende",
-    "Ikwuano",
-    "Isiala Ngwa North",
-    "Isiala Ngwa South",
-    "Isuikwuato",
-    "Obi Ngwa",
-    "Ohafia",
-    "Osisioma",
-    "Ugwunagbo",
-    "Ukwa East",
-    "Ukwa West",
-    "Umuahia North",
-    "Umuahia South",
-    "Umu Nneochi",
-)
-STATE_CODE = "NG-AB"
-NIGERIA_CODE = "NG"
-ASUBEB_CODE = "ASUBEB"
-TERTIARY_CODE = "TERTIARY-BOARD"
-# Working name until the official name and abbreviation are confirmed (ADR-010).
-TERTIARY_NAME = "Abia State Tertiary Education Board"
-BASIC_LEVELS = ["eccde", "primary", "jss", "sss"]
+async def seed_structure(
+    structure_ref: str, platform_code: str, admin_login: str | None
+) -> dict[str, object]:
+    """Build a jurisdiction from a structure file (P4: every state or country differs; the
+    differences are data). Safe to run again: nothing is duplicated."""
+    from syntegra.governance.structure import load_structure
 
-
-def lgea_code(lga: str) -> str:
-    return "LGEA-" + "-".join(lga.upper().split())
-
-
-async def seed_abia(platform_code: str, admin_login: str | None) -> dict[str, object]:
-    """Nigeria -> Abia State (tenant) -> ASUBEB (+17 LGEAs) and the Tertiary Education Board
-    (ADR-010). Safe to run again: nothing is duplicated."""
+    structure = load_structure(structure_ref)
     settings = get_settings()
     engine = make_engine(settings.database_url)
     sm = make_sessionmaker(engine)
-    created: list[str] = []
     async with sm() as session, session.begin():
         platform = await governance.tenant_by_code(session, platform_code)
         if platform is None:
             raise SystemExit(f"platform tenant {platform_code} not found: run 'bootstrap' first")
-        nigeria = await governance.tenant_by_code(session, NIGERIA_CODE)
-        if nigeria is None:
-            nigeria = await governance.create_child_tenant(
-                session,
-                parent_scope_id=platform.root_scope_node_id,
-                code=NIGERIA_CODE,
-                name="Nigeria",
-                level=GovernanceLevel.COUNTRY,
-                country="NG",
-                residency_region=platform.residency_region,
-                time_zone="Africa/Lagos",
-                local_label="Federal Ministry of Education",
-            )
-            created.append("Nigeria")
-        state = await governance.tenant_by_code(session, STATE_CODE)
-        if state is None:
-            state = await governance.create_child_tenant(
-                session,
-                parent_scope_id=nigeria.root_scope_node_id,
-                code=STATE_CODE,
-                name="Abia State",
-                level=GovernanceLevel.REGION,
-                country="NG",
-                residency_region=nigeria.residency_region,
-                time_zone="Africa/Lagos",
-                local_label="State",
-            )
-            created.append("Abia State")
-        with use_context(
-            RequestContext(
-                state.id, state.root_scope_node_id, None, system=True, purpose="seed-abia"
-            )
-        ):
-
-            async def node(
-                parent: uuid.UUID, level: GovernanceLevel, code: str, name: str, label: str
-            ) -> uuid.UUID:
-                found = await governance.scope_node_by_code(session, state.id, code)
-                if found is not None:
-                    return found.id
-                made = await governance.create_scope_node(
-                    session, parent_id=parent, level=level, code=code, name=name, local_label=label
+        tenant, bodies, created = await governance.apply_structure(
+            session,
+            structure,
+            platform_scope_id=platform.root_scope_node_id,
+            residency_region=platform.residency_region,
+        )
+        if admin_login and await iam.user_by_login(session, tenant.id, admin_login) is None:
+            with use_context(
+                RequestContext(
+                    tenant.id,
+                    tenant.root_scope_node_id,
+                    None,
+                    system=True,
+                    purpose="apply-structure",
                 )
-                created.append(code)
-                return made.id
-
-            # Boards rank below the state; LGEAs below a board; institutions below those.
-            asubeb = await node(
-                state.root_scope_node_id,
-                GovernanceLevel.LOCAL_AUTHORITY,
-                ASUBEB_CODE,
-                "Abia State Universal Basic Education Board",
-                "Board",
-            )
-            tertiary = await node(
-                state.root_scope_node_id,
-                GovernanceLevel.LOCAL_AUTHORITY,
-                TERTIARY_CODE,
-                TERTIARY_NAME,
-                "Board",
-            )
-            for lga in ABIA_LGAS:
-                await node(asubeb, GovernanceLevel.NETWORK, lgea_code(lga), f"{lga} LGEA", "LGEA")
-            if await governance.resolve_config(session, asubeb, "register.levels") is None:
-                await governance.set_config(
-                    session, scope_node_id=asubeb, key="register.levels", value=BASIC_LEVELS
-                )
-                created.append("ASUBEB register levels")
-            if admin_login and await iam.user_by_login(session, state.id, admin_login) is None:
+            ):
                 user = await iam.create_user(
                     session,
-                    tenant_id=state.id,
+                    tenant_id=tenant.id,
                     login=admin_login,
-                    display_name="Abia State administrator",
+                    display_name=f"{tenant.name} administrator",
                 )
                 await iam.grant_role(
                     session,
                     user_id=user.id,
                     role_code="STA",
-                    scope_node_id=state.root_scope_node_id,
+                    scope_node_id=tenant.root_scope_node_id,
                 )
-                created.append(f"user {admin_login} (STA)")
+            created.append(f"user {admin_login} (STA)")
     await engine.dispose()
     return {
-        "state_tenant_id": str(state.id),
-        "asubeb_scope_id": str(asubeb),
-        "tertiary_board_scope_id": str(tertiary),
+        "tenant": tenant.code,
+        "tenant_id": str(tenant.id),
+        "bodies": {code: str(sid) for code, sid in bodies.items()},
         "created": created,
     }
 
 
-async def import_schools(text: str, source_name: str, board_code: str, commit: bool) -> int:
+async def import_schools(
+    text: str, source_name: str, tenant_code: str, board_code: str, commit: bool
+) -> int:
     """Preview (and with --commit, register) a CSV list of schools under a board (ADR-010)."""
     from syntegra.institutions import api as institutions
 
@@ -219,12 +138,12 @@ async def import_schools(text: str, source_name: str, board_code: str, commit: b
     engine = make_engine(settings.database_url)
     sm = make_sessionmaker(engine)
     async with sm() as session, session.begin():
-        state = await governance.tenant_by_code(session, STATE_CODE)
+        state = await governance.tenant_by_code(session, tenant_code)
         board = (
             await governance.scope_node_by_code(session, state.id, board_code) if state else None
         )
         if state is None or board is None:
-            raise SystemExit(f"board {board_code} not found: run seed-abia first")
+            raise SystemExit(f"{board_code} not found in {tenant_code}: run seed-structure first")
         with use_context(
             RequestContext(state.id, board.id, None, system=True, purpose="school-import")
         ):
@@ -283,16 +202,19 @@ def main() -> None:
     b.add_argument("--code", default="SYNTEGRA")
     b.add_argument("--name", default="Syntegra programme")
     b.add_argument("--region", default=get_settings().residency_region)
+    st = sub.add_parser("seed-structure", help="build a state or country from its structure file")
+    st.add_argument("structure", help="a structure file, or a bundled name such as ng-abia")
+    st.add_argument("--platform-code", default="SYNTEGRA")
+    st.add_argument("--admin", help="login for a jurisdiction administrator (state officer role)")
     a = sub.add_parser(
-        "seed-abia",
-        aliases=["seed-asubeb"],
-        help="create Abia State, ASUBEB (+17 LGEAs) and the Tertiary Education Board",
+        "seed-abia", aliases=["seed-asubeb"], help="shortcut for: seed-structure ng-abia"
     )
     a.add_argument("--platform-code", default="SYNTEGRA")
-    a.add_argument("--admin", help="login for an ASUBEB administrator (state officer role)")
+    a.add_argument("--admin", help="login for an Abia State administrator (state officer role)")
     imp = sub.add_parser("import-schools", help="preview or register a CSV list of schools")
     imp.add_argument("csv_path")
-    imp.add_argument("--board-code", default=ASUBEB_CODE)
+    imp.add_argument("--tenant-code", default="NG-AB")
+    imp.add_argument("--board-code", default="ASUBEB")
     imp.add_argument(
         "--commit", action="store_true", help="register the valid rows (default: preview only)"
     )
@@ -309,15 +231,21 @@ def main() -> None:
                 asyncio.run(bootstrap(args.admin, args.code, args.name, args.region)), indent=2
             )
         )
+    elif args.cmd == "seed-structure":
+        out = asyncio.run(seed_structure(args.structure, args.platform_code, args.admin))
+        print(json.dumps(out, indent=2))
     elif args.cmd in ("seed-abia", "seed-asubeb"):
-        print(json.dumps(asyncio.run(seed_abia(args.platform_code, args.admin)), indent=2))
+        out = asyncio.run(seed_structure("ng-abia", args.platform_code, args.admin))
+        print(json.dumps(out, indent=2))
     elif args.cmd == "import-schools":
         from pathlib import Path
 
         csv_file = Path(args.csv_path)
         text = csv_file.read_text(encoding="utf-8-sig")
         raise SystemExit(
-            asyncio.run(import_schools(text, csv_file.name, args.board_code, args.commit))
+            asyncio.run(
+                import_schools(text, csv_file.name, args.tenant_code, args.board_code, args.commit)
+            )
         )
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))

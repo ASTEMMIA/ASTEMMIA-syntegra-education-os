@@ -76,8 +76,9 @@ def template_csv() -> str:
 
 
 async def _lgea_index(session: AsyncSession) -> dict[str, tuple[str, str]]:
-    """The LGEAs of the board the caller works in: the children of the active scope that sit
-    above institution level (ADR-010). Keys are fold(name) and fold(name minus 'LGEA')."""
+    """The local units (LGEAs, zones, districts…) of the body the caller works in: children of
+    the active scope above institution level (ADR-010). A unit named "Ohafia LGEA" with label
+    "LGEA" answers to both "Ohafia LGEA" and "Ohafia"; the label comes from the structure file."""
     ctx = current_context()
     index: dict[str, tuple[str, str]] = {}
     after = None
@@ -85,7 +86,8 @@ async def _lgea_index(session: AsyncSession) -> dict[str, tuple[str, str]]:
         page = await governance.list_children(session, ctx.scope_node_id, after=after, limit=200)
         for n in page:
             if n.level < GovernanceLevel.INSTITUTION:
-                bare = n.name.removesuffix(" LGEA").strip()
+                suffix = f" {n.local_label}" if n.local_label else ""
+                bare = n.name.removesuffix(suffix).strip() if suffix else n.name
                 index[fold(n.name)] = (str(n.id), bare)
                 index[fold(bare)] = (str(n.id), bare)
         if len(page) < 200:
@@ -102,9 +104,9 @@ async def allowed_levels(session: AsyncSession) -> frozenset[Level]:
     value = await governance.resolve_config(
         session, current_context().scope_node_id, LEVELS_SETTING
     )
-    if not value:
+    if value is None:  # not configured: basic education
         return DEFAULT_LEVELS
-    return frozenset(Level(v) for v in value)
+    return frozenset(Level(v) for v in value)  # an empty list means this body registers none yet
 
 
 async def _existing(session: AsyncSession) -> tuple[set[str], set[tuple[str, str]]]:
@@ -336,9 +338,9 @@ async def _views(session: AsyncSession, items: list[Institution]) -> list[Instit
     out = []
     for i in items:
         if i.lga_scope_id not in names:
-            names[i.lga_scope_id] = (
-                await governance.get_scope_node(session, i.lga_scope_id)
-            ).name.removesuffix(" LGEA")
+            unit = await governance.get_scope_node(session, i.lga_scope_id)
+            suffix = f" {unit.local_label}" if unit.local_label else ""
+            names[i.lga_scope_id] = unit.name.removesuffix(suffix) if suffix else unit.name
         out.append(
             InstitutionView(
                 i.id,

@@ -41,7 +41,7 @@ name in the same LGA. Case, punctuation and accents are ignored.
 ## Command line (for the implementation team)
 
 ```bash
-python -m syntegra.cli seed-abia                                   # once: Abia State, ASUBEB + 17 LGEAs, Tertiary Board
+python -m syntegra.cli seed-structure ng-abia                      # once: Abia State, ASUBEB + 17 LGEAs, Ministry of Tertiary Education
 python -m syntegra.cli import-schools schools.csv --board-code ASUBEB            # check only
 python -m syntegra.cli import-schools schools.csv --board-code ASUBEB --commit
 ```

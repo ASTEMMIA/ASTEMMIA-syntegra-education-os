@@ -38,6 +38,7 @@ async def _second_lgea(sm, world):
                 level=GovernanceLevel.LOCAL_AUTHORITY,
                 code="LGEA-ABA-SOUTH",
                 name="Aba South LGEA",
+                local_label="LGEA",
             )
 
 

@@ -6,9 +6,9 @@
 The programme owner's direction is that the platform is **the one-stop repository for all educational
 matters in Abia State, from kindergarten to university**:
 * government ECCDE/kindergarten, primary and secondary schools are registered under **ASUBEB**
-* post-secondary institutions are registered under the **Abia State Tertiary Education Board**
+* higher and tertiary education is **overseen directly by the Abia State Ministry of Tertiary Education**
 
-ADR-009 made ASUBEB its own tenant. A second board as a second tenant (option B) would create a new
+ADR-009 made ASUBEB its own tenant. Making tertiary education a second tenant (option B) would create a new
 person record when a school leaver enters a polytechnic or university. That breaks P1 ("one record,
 many uses") and the lifelong learner record of P3. The programme owner chose **option A**.
 
@@ -16,7 +16,7 @@ many uses") and the lifelong learner record of P3. The programme owner chose **o
 ```
 Syntegra → Nigeria (country tenant) → Abia State (regional tenant)
              ├── ASUBEB (board)            → 17 LGEAs → government ECCDE, primary and secondary schools
-             └── Tertiary Education Board  → polytechnics, colleges of education, university
+             └── Ministry of Tertiary Education → polytechnics, colleges of education, university
 ```
 
 * **One tenant for the state.** Each board is a **scope inside it**. Each board's staff are granted at
@@ -45,8 +45,10 @@ Syntegra → Nigeria (country tenant) → Abia State (regional tenant)
   as the active scope.
 
 ## Open
-* **The Tertiary Education Board's official name and abbreviation** are to be confirmed. The working name
-  is "Abia State Tertiary Education Board", code `TERTIARY-BOARD`.
+* **Resolved:** tertiary education is overseen by the **Abia State Ministry of Tertiary Education**
+  (code `MIN-TERTIARY-EDUCATION`, label "Ministry"). It registers no levels until the tertiary register
+  exists.
+* The structure is now defined in a data file rather than code ([ADR-011](ADR-011-jurisdiction-structure-files.md)).
 * **Tertiary institution register (next):**
   * tertiary levels (TVET, NCE, ND/HND, degree, postgraduate; §23)
   * institutions placed directly under the board, with their location LGA recorded separately from

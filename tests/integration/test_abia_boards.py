@@ -1,4 +1,4 @@
-"""ADR-010: one Abia State tenant; ASUBEB and the Tertiary Education Board are scopes in it."""
+"""ADR-010: one Abia State tenant; ASUBEB and the Ministry of Tertiary Education are scopes."""
 
 from contextlib import asynccontextmanager
 
@@ -29,9 +29,9 @@ async def _boards(sm, world):
                 s,
                 parent_id=world.abia_root,
                 level=GovernanceLevel.LOCAL_AUTHORITY,
-                code="TERTIARY-BOARD",
-                name="Abia State Tertiary Education Board",
-                local_label="Board",
+                code="MIN-TERTIARY-EDUCATION",
+                name="Abia State Ministry of Tertiary Education",
+                local_label="Ministry",
             )
             ohafia = await governance.create_scope_node(
                 s,
