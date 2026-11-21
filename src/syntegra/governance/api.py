@@ -56,9 +56,11 @@ __all__ = [
     "get_tenant",
     "is_within",
     "list_children",
+    "lowest_common_ancestor",
     "policy_rule_owner",
     "publish_policy_rule",
     "resolve_config",
+    "scope_node_by_code",
     "set_config",
     "subtree_of",
     "tenant_by_code",
@@ -153,6 +155,27 @@ async def get_tenant(session: AsyncSession, tenant_id: uuid.UUID) -> TenantView:
 async def ancestor_ids(session: AsyncSession, node_id: uuid.UUID) -> set[uuid.UUID]:
     """The node itself and every ancestor, across tenant boundaries."""
     return {r.ancestor_id for r in await _ancestry(session, node_id)}
+
+
+async def scope_node_by_code(
+    session: AsyncSession, tenant_id: uuid.UUID, code: str
+) -> ScopeNodeView | None:
+    node = (
+        await session.execute(
+            select(ScopeNode).where(ScopeNode.tenant_id == tenant_id, ScopeNode.code == code)
+        )
+    ).scalar_one_or_none()
+    return _node_view(node) if node else None
+
+
+async def lowest_common_ancestor(session: AsyncSession, a: uuid.UUID, b: uuid.UUID) -> uuid.UUID:
+    """The deepest scope that contains both nodes, e.g. the LGEA of two schools in it."""
+    a_rows = {r.ancestor_id: r.depth for r in await _ancestry(session, a)}
+    b_ids = {r.ancestor_id for r in await _ancestry(session, b)}
+    shared = [(depth, anc) for anc, depth in a_rows.items() if anc in b_ids]
+    if not shared:
+        raise NotFound("these scopes have no common ancestor")
+    return min(shared)[1]
 
 
 async def is_within(session: AsyncSession, ancestor_id: uuid.UUID, node_id: uuid.UUID) -> bool:

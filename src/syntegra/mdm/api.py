@@ -593,15 +593,23 @@ async def create_person(
     await session.flush()
 
     review_ids: list[uuid.UUID] = []
-    root: uuid.UUID | None = None
     for c in candidates:
         status = "open" if c.outcome is MatchOutcome.REVIEW else "different_people"
         if c.visible:
             review_scope = person.scope_node_id
         else:
-            # Out of the caller's sight: raise it where a steward can see both records.
-            root = root or await governance.tenant_root_scope(session, ctx.tenant_id)
-            review_scope = root
+            # Out of the caller's sight: file it at the lowest scope that holds both records
+            # (e.g. the LGEA for two schools in it), where a steward can see both (ADR-009).
+            candidate_scope = (
+                await session.execute(
+                    select(Person.scope_node_id)
+                    .where(Person.id == c.person_id)
+                    .execution_options(**_bypass())
+                )
+            ).scalar_one()
+            review_scope = await governance.lowest_common_ancestor(
+                session, person.scope_node_id, candidate_scope
+            )
         review = MatchReview(
             scope_node_id=review_scope,
             person_id=person.id,

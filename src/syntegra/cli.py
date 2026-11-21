@@ -74,6 +74,111 @@ async def bootstrap(admin_login: str, code: str, name: str, region: str) -> dict
     }
 
 
+# The 17 local government areas of Abia State; each has a Local Government Education Authority.
+ABIA_LGAS = (
+    "Aba North",
+    "Aba South",
+    "Arochukwu",
+    "Bende",
+    "Ikwuano",
+    "Isiala Ngwa North",
+    "Isiala Ngwa South",
+    "Isuikwuato",
+    "Obi Ngwa",
+    "Ohafia",
+    "Osisioma",
+    "Ugwunagbo",
+    "Ukwa East",
+    "Ukwa West",
+    "Umuahia North",
+    "Umuahia South",
+    "Umu Nneochi",
+)
+ASUBEB_CODE = "NG-AB-ASUBEB"
+NIGERIA_CODE = "NG"
+
+
+def lgea_code(lga: str) -> str:
+    return "LGEA-" + "-".join(lga.upper().split())
+
+
+async def seed_asubeb(platform_code: str, admin_login: str | None) -> dict[str, object]:
+    """Create Nigeria -> ASUBEB -> 17 LGEAs (ADR-009). Safe to run again: nothing is duplicated."""
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    created: list[str] = []
+    async with sm() as session, session.begin():
+        platform = await governance.tenant_by_code(session, platform_code)
+        if platform is None:
+            raise SystemExit(f"platform tenant {platform_code} not found: run 'bootstrap' first")
+        nigeria = await governance.tenant_by_code(session, NIGERIA_CODE)
+        if nigeria is None:
+            nigeria = await governance.create_child_tenant(
+                session,
+                parent_scope_id=platform.root_scope_node_id,
+                code=NIGERIA_CODE,
+                name="Nigeria",
+                level=GovernanceLevel.COUNTRY,
+                country="NG",
+                residency_region=platform.residency_region,
+                time_zone="Africa/Lagos",
+                local_label="Federal Ministry of Education",
+            )
+            created.append("Nigeria")
+        board = await governance.tenant_by_code(session, ASUBEB_CODE)
+        if board is None:
+            board = await governance.create_child_tenant(
+                session,
+                parent_scope_id=nigeria.root_scope_node_id,
+                code=ASUBEB_CODE,
+                name="Abia State Universal Basic Education Board",
+                level=GovernanceLevel.REGION,
+                country="NG",
+                residency_region=nigeria.residency_region,
+                time_zone="Africa/Lagos",
+                local_label="ASUBEB",
+            )
+            created.append("ASUBEB")
+        with use_context(
+            RequestContext(
+                board.id, board.root_scope_node_id, None, system=True, purpose="seed-asubeb"
+            )
+        ):
+            for lga in ABIA_LGAS:
+                code = lgea_code(lga)
+                if await governance.scope_node_by_code(session, board.id, code) is None:
+                    await governance.create_scope_node(
+                        session,
+                        parent_id=board.root_scope_node_id,
+                        level=GovernanceLevel.LOCAL_AUTHORITY,
+                        code=code,
+                        name=f"{lga} LGEA",
+                        local_label="LGEA",
+                    )
+                    created.append(code)
+            if admin_login and await iam.user_by_login(session, board.id, admin_login) is None:
+                user = await iam.create_user(
+                    session,
+                    tenant_id=board.id,
+                    login=admin_login,
+                    display_name="ASUBEB administrator",
+                )
+                await iam.grant_role(
+                    session,
+                    user_id=user.id,
+                    role_code="STA",
+                    scope_node_id=board.root_scope_node_id,
+                )
+                created.append(f"user {admin_login} (STA)")
+    await engine.dispose()
+    return {
+        "asubeb_tenant_id": str(board.id),
+        "asubeb_root_scope_id": str(board.root_scope_node_id),
+        "created": created,
+    }
+
+
 async def relay(once: bool) -> None:
     settings = get_settings()
     engine = make_engine(settings.database_url)
@@ -112,6 +217,9 @@ def main() -> None:
     b.add_argument("--code", default="SYNTEGRA")
     b.add_argument("--name", default="Syntegra programme")
     b.add_argument("--region", default=get_settings().residency_region)
+    a = sub.add_parser("seed-asubeb", help="create ASUBEB and its 17 LGEAs (ADR-009)")
+    a.add_argument("--platform-code", default="SYNTEGRA")
+    a.add_argument("--admin", help="login for an ASUBEB administrator (state officer role)")
     r = sub.add_parser("relay")
     r.add_argument("--once", action="store_true")
     v = sub.add_parser("verify-audit")
@@ -125,6 +233,8 @@ def main() -> None:
                 asyncio.run(bootstrap(args.admin, args.code, args.name, args.region)), indent=2
             )
         )
+    elif args.cmd == "seed-asubeb":
+        print(json.dumps(asyncio.run(seed_asubeb(args.platform_code, args.admin)), indent=2))
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))
     elif args.cmd == "verify-audit":

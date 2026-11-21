@@ -33,6 +33,7 @@ export SYNTEGRA_DATABASE_URL=mysql+asyncmy://syntegra:syntegra@127.0.0.1:3306/
 uv run alembic upgrade head
 SYNTEGRA_TEST_DATABASE_URL=$SYNTEGRA_DATABASE_URL uv run pytest -q   # full suite on MySQL 9.7
 uv run python -m syntegra.cli bootstrap --admin admin@example.org
+uv run python -m syntegra.cli seed-asubeb --admin admin@asubeb.example   # ASUBEB + 17 LGEAs (ADR-009)
 uv run uvicorn syntegra.web.app:create_app --factory --reload        # http://localhost:8000/docs
 ```
 
