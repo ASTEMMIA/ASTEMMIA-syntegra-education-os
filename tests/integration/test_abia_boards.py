@@ -2,10 +2,7 @@
 
 from contextlib import asynccontextmanager
 
-import pytest
-
 from syntegra.core.context import RequestContext, use_context
-from syntegra.core.errors import ValidationFailed
 from syntegra.governance import api as governance
 from syntegra.governance.domain import GovernanceLevel
 from syntegra.institutions import api as inst
@@ -55,18 +52,10 @@ async def test_schools_import_under_the_board_and_its_lgeas(sm, world):
     async with sm() as s, s.begin(), at(world, asubeb):
         job = await inst.preview_import(s, CSV, source_name="asubeb.csv")
         assert (await inst.commit_import(s, job, managing_body="ASUBEB"))["created"] == 2
-        schools = await inst.list_institutions(s, lga_scope_id=ohafia, after=None, limit=10)
+        schools = await inst.list_institutions(s, parent_scope_id=ohafia)
         assert len(schools) == 2
         node = await governance.get_scope_node(s, schools[0].scope_node_id)
         assert node.parent_id == ohafia and await governance.is_within(s, asubeb, node.id)
-
-
-async def test_importing_at_the_wrong_level_says_where_to_go(sm, world):
-    _, tertiary, _ = await _boards(sm, world)
-    async with sm() as s, s.begin(), at(world, tertiary):
-        with pytest.raises(ValidationFailed) as exc:
-            await inst.preview_import(s, CSV, source_name=None)
-        assert "Switch to your board" in exc.value.next_action
 
 
 async def test_board_levels_come_from_configuration(sm, world):
@@ -77,7 +66,7 @@ async def test_board_levels_come_from_configuration(sm, world):
         )
         _job, rows = await inst.get_job(s, await inst.preview_import(s, CSV, source_name=None))
         assert [r.status for r in rows] == ["valid", "error"]
-        assert rows[1].messages == ["this board does not register JSS, SSS institutions"]
+        assert rows[1].messages == ["this body does not register JSS, SSS institutions"]
 
 
 async def test_one_person_record_is_shared_across_boards(sm, world):

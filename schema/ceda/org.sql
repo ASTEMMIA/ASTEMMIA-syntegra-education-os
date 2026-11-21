@@ -6,7 +6,10 @@ CREATE TABLE org.institution (
 	government_code VARCHAR(40), 
 	name VARCHAR(200) NOT NULL, 
 	name_key VARCHAR(200) NOT NULL, 
-	lga_scope_id BINARY(16) NOT NULL, 
+	parent_scope_id BINARY(16) NOT NULL, 
+	location VARCHAR(64) NOT NULL, 
+	location_key VARCHAR(64) NOT NULL, 
+	institution_type VARCHAR(24) NOT NULL, 
 	ownership VARCHAR(8) NOT NULL, 
 	managing_body VARCHAR(64), 
 	status VARCHAR(8) NOT NULL, 
@@ -30,17 +33,20 @@ CREATE TABLE org.institution (
 	CONSTRAINT pk_institution PRIMARY KEY (id), 
 	CONSTRAINT uq_institution_tenant_id_institution_code UNIQUE (tenant_id, institution_code), 
 	CONSTRAINT uq_institution_tenant_id_government_code UNIQUE (tenant_id, government_code), 
-	CONSTRAINT uq_institution_tenant_id_lga_scope_id_name_key UNIQUE (tenant_id, lga_scope_id, name_key), 
+	CONSTRAINT uq_institution_tenant_id_parent_scope_id_location_key_name_key UNIQUE (tenant_id, parent_scope_id, location_key, name_key), 
 	CONSTRAINT ck_institution_ownership CHECK (ownership IN ('public','private')), 
+	CONSTRAINT ck_institution_institution_type CHECK (institution_type IN ('school','university','polytechnic','college_of_education','technical_college','college_of_health','other_tertiary')), 
 	CONSTRAINT ck_institution_status CHECK (status IN ('active','closed')), 
 	CONSTRAINT fk_institution_head_person_id_person FOREIGN KEY(head_person_id) REFERENCES mdm.person (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
-CREATE INDEX ix_institution_tenant_id_lga_scope_id ON org.institution (tenant_id, lga_scope_id);
+CREATE INDEX ix_institution_tenant_id_location_key ON org.institution (tenant_id, location_key);
+
+CREATE INDEX ix_institution_tenant_id_parent_scope_id ON org.institution (tenant_id, parent_scope_id);
 
 CREATE TABLE org.institution_level (
 	institution_id BINARY(16) NOT NULL, 
-	level VARCHAR(8) NOT NULL, 
+	level VARCHAR(16) NOT NULL, 
 	tenant_id BINARY(16) NOT NULL, 
 	scope_node_id BINARY(16) NOT NULL, 
 	created_at DATETIME(6) NOT NULL, 
@@ -53,6 +59,6 @@ CREATE TABLE org.institution_level (
 	id BINARY(16) NOT NULL, 
 	CONSTRAINT pk_institution_level PRIMARY KEY (id), 
 	CONSTRAINT uq_institution_level_tenant_id_institution_id_level UNIQUE (tenant_id, institution_id, level), 
-	CONSTRAINT ck_institution_level_level CHECK (level IN ('eccde','primary','jss','sss')), 
+	CONSTRAINT ck_institution_level_level CHECK (level IN ('eccde','primary','jss','sss','tvet','nce','nd','hnd','degree','postgraduate')), 
 	CONSTRAINT fk_institution_level_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

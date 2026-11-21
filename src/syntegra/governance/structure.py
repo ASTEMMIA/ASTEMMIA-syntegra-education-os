@@ -80,7 +80,17 @@ class Structure(_Model):
     version: int = Field(ge=1, le=1)
     country: Country
     jurisdiction: Jurisdiction | None = None
+    # Local government areas (or districts, counties…) used to check where an institution is.
+    # Set as `location.areas` on the jurisdiction; independent of any body's units.
+    areas: list[str] = []
     bodies: list[Body] = Field(min_length=1)
+
+    @field_validator("areas")
+    @classmethod
+    def _unique_areas(cls, v: list[str]) -> list[str]:
+        if len({a.strip().casefold() for a in v}) != len(v):
+            raise ValueError("area names must be unique")
+        return [a.strip() for a in v]
 
     @model_validator(mode="after")
     def _checks(self) -> Structure:

@@ -1,4 +1,4 @@
-"""School register and bulk import HTTP API (CEDA §10.4 bulk pattern)."""
+"""Institution register and bulk import HTTP API, kindergarten to university (CEDA §10.4)."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/v1", tags=["institutions"])
 
 class SchoolBody(Model):
     name: str = Field(min_length=3, max_length=200)
+    type: str | None = Field(default=None, max_length=48, examples=["Polytechnic"])
     lga: str = Field(min_length=2, max_length=64)
     levels: str = Field(min_length=2, max_length=64, examples=["Primary", "JSS; SSS"])
     government_code: str | None = Field(default=None, max_length=40)
@@ -36,7 +37,9 @@ def _view(v: inst.InstitutionView) -> dict[str, Any]:
         "institution_code": v.institution_code,
         "government_code": v.government_code,
         "name": v.name,
-        "lga": v.lga,
+        "type": v.institution_type,
+        "lga": v.location,
+        "parent_scope_id": str(v.parent_scope_id),
         "levels": v.levels,
         "town": v.town,
         "status": v.status,
@@ -45,18 +48,24 @@ def _view(v: inst.InstitutionView) -> dict[str, Any]:
 
 
 async def _board(uow: UowDep) -> str:
-    return (await governance.get_tenant(uow.session, uow.ctx.tenant_id)).name[:64]
+    """The body the user is working in (e.g. ASUBEB or the Ministry) manages what they register."""
+    return (await governance.get_scope_node(uow.session, uow.ctx.scope_node_id)).name[:64]
 
 
-@router.get("/institutions", summary="Schools in your scope")
+@router.get("/institutions", summary="Institutions in your scope (filter by parent or type)")
 async def list_schools(
     uow: UowDep,
-    lga_scope_id: uuid.UUID | None = None,
+    parent_scope_id: uuid.UUID | None = None,
+    type: str | None = None,
     cursor: str | None = None,
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 50,
 ) -> dict[str, Any]:
     rows = await inst.list_institutions(
-        uow.session, lga_scope_id=lga_scope_id, after=decode_cursor(cursor), limit=limit + 1
+        uow.session,
+        parent_scope_id=parent_scope_id,
+        institution_type=type,
+        after=decode_cursor(cursor),
+        limit=limit + 1,
     )
     page = rows[:limit]
     return {
@@ -65,7 +74,7 @@ async def list_schools(
     }
 
 
-@router.post("/institutions", status_code=201, summary="Register one school")
+@router.post("/institutions", status_code=201, summary="Register one institution")
 async def register_school(body: SchoolBody, request: Request, uow: UowDep) -> JSONResponse:
     key, digest, replayed = await replay(uow, request, body.model_dump(mode="json"))
     if replayed:

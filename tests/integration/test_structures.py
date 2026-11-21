@@ -5,7 +5,6 @@ from pydantic import ValidationError
 from sqlalchemy import select
 
 from syntegra.core.context import RequestContext, use_context
-from syntegra.core.errors import ValidationFailed
 from syntegra.governance import api as governance
 from syntegra.governance.domain import GovernanceLevel
 from syntegra.governance.models import ScopeNode
@@ -69,16 +68,17 @@ async def test_abia_file_builds_boards_lgeas_and_settings_idempotently(sm, world
     tenant, bodies, created = await _apply(sm, world, load_structure("ng-abia"))
     assert tenant.code == "NG-AB" and set(bodies) == {"ASUBEB", "MIN-TERTIARY-EDUCATION"}
     assert "LGEA-UMU-NNEOCHI" in created and "ASUBEB register levels" in created
+    assert "location areas" in created and "MIN-TERTIARY-EDUCATION register levels" in created
     async with sm() as s:
         with use_context(RequestContext(tenant.id, tenant.root_scope_node_id, None)):
             lgeas = await governance.list_children(s, bodies["ASUBEB"], after=None, limit=50)
             assert len(lgeas) == 17 and all(n.level == GovernanceLevel.NETWORK for n in lgeas)
-            assert (
-                await governance.resolve_config(
-                    s, bodies["MIN-TERTIARY-EDUCATION"], "register.levels"
-                )
-                == []
+            ministry_levels = await governance.resolve_config(
+                s, bodies["MIN-TERTIARY-EDUCATION"], "register.levels"
             )
+            assert ministry_levels == ["tvet", "nce", "nd", "hnd", "degree", "postgraduate"]
+            areas = await governance.resolve_config(s, bodies["ASUBEB"], "location.areas")
+            assert len(areas) == 17 and "Umu Nneochi" in areas
     _, _, again = await _apply(sm, world, load_structure("ng-abia"))
     assert again == []
 
@@ -110,21 +110,20 @@ async def test_a_country_without_states(sm, world):
         assert body.level == GovernanceLevel.REGION and body.local_label == "Local authority"
 
 
-async def test_a_body_that_registers_nothing_yet_rejects_imports(sm, world):
-    tenant, bodies, _ = await _apply(sm, world, load_structure("ng-abia"))
+async def test_a_body_that_registers_nothing_yet_rejects_every_row(sm, world):
+    """registers: [] means none yet. It must not fall back to the basic-education default."""
+    pending = OTHER_STATE | {"bodies": [OTHER_STATE["bodies"][0] | {"registers": []}]}
+    tenant, bodies, _ = await _apply(sm, world, pending)
     async with sm() as s, s.begin():
-        with use_context(RequestContext(tenant.id, bodies["ASUBEB"], None, system=True)):
-            # ASUBEB accepts its levels...
-            ok = await inst.preview_import(
-                s, "name,lga,levels\nTEST One,Ohafia,Primary\n", source_name=None
+        with use_context(RequestContext(tenant.id, bodies["SUBEB"], None, system=True)):
+            _job, rows = await inst.get_job(
+                s,
+                await inst.preview_import(
+                    s, "name,lga,levels\nTEST Pry,North,Primary\n", source_name=None
+                ),
             )
-            assert (await inst.get_job(s, ok))[0].summary["valid"] == 1
-        # ...the Ministry has no LGEAs and registers nothing until tertiary levels exist.
-        ministry = RequestContext(tenant.id, bodies["MIN-TERTIARY-EDUCATION"], None, system=True)
-        with use_context(ministry), pytest.raises(ValidationFailed):
-            await inst.preview_import(
-                s, "name,lga,levels\nTEST Poly,Ohafia,Primary\n", source_name=None
-            )
+            assert rows[0].status == "error"
+            assert rows[0].messages == ["this body does not register Primary institutions"]
 
 
 def test_bad_structure_files_are_refused():

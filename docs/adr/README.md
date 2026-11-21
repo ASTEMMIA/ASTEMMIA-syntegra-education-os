@@ -16,3 +16,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [009](ADR-009-asubeb-state-tenancy.md) | Government schools under ASUBEB; duplicate reviews routed to the LGEA or state | Accepted (tenancy superseded by 010) |
 | [010](ADR-010-abia-state-kindergarten-to-university.md) | One Abia State tenant, kindergarten to university: ASUBEB and the Ministry of Tertiary Education as scopes | Accepted |
 | [011](ADR-011-jurisdiction-structure-files.md) | Jurisdiction structure files: every state or country is data, not code | Accepted |
+| [012](ADR-012-tertiary-register.md) | One institution register, kindergarten to university: tertiary institutions under the Ministry | Accepted |

@@ -35,7 +35,8 @@ uv run alembic upgrade head
 SYNTEGRA_TEST_DATABASE_URL=$SYNTEGRA_DATABASE_URL uv run pytest -q   # full suite on MySQL 9.7
 uv run python -m syntegra.cli bootstrap --admin admin@example.org
 uv run python -m syntegra.cli seed-structure ng-abia --admin admin@abia.example   # Abia State from its structure file (ADR-010, ADR-011)
-uv run python -m syntegra.cli import-schools schools.csv [--commit]     # register schools from CSV
+uv run python -m syntegra.cli import-institutions schools.csv --commit                          # ASUBEB schools
+uv run python -m syntegra.cli import-institutions tertiary.csv --board-code MIN-TERTIARY-EDUCATION --commit
 uv run uvicorn syntegra.web.app:create_app --factory --reload        # http://localhost:8000/docs
 ```
 

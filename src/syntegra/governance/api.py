@@ -729,6 +729,17 @@ async def apply_structure(
             created.append(code)
             return made.id
 
+        if (
+            st.areas
+            and await resolve_config(session, tenant.root_scope_node_id, "location.areas") is None
+        ):
+            await set_config(
+                session,
+                scope_node_id=tenant.root_scope_node_id,
+                key="location.areas",
+                value=list(st.areas),
+            )
+            created.append("location areas")
         for b in st.bodies:
             body_id = await node(tenant.root_scope_node_id, st.body_level, b.code, b.name, b.label)
             bodies[b.code] = body_id

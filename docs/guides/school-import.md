@@ -1,4 +1,4 @@
-# Registering ASUBEB schools from a spreadsheet
+# Registering schools and tertiary institutions from a spreadsheet
 
 All Abia State government kindergarten (ECCDE), primary and secondary schools are registered under ASUBEB,
 one of the boards inside the Abia State organisation
@@ -10,14 +10,25 @@ your active scope, when you upload. Load them from one spreadsheet saved as **CS
 | Column | Required | Example | Notes |
 |---|---|---|---|
 | `name` | yes | Community Primary School Ndume | 3–200 characters |
+| `type` | tertiary only | Polytechnic | School (default), University, Polytechnic, College of education, Technical college, College of health, Other tertiary. "Poly", "COE" and "School of Nursing" are understood. |
 | `lga` | yes | Umuahia North | One of Abia's 17 LGAs. "Umuahia North LGEA" and "umuahia north l.g.a." also work. |
-| `levels` | yes | Primary · JSS; SSS · Secondary | Primary, JSS, SSS, ECCDE. "Pry", "JSS & SSS" and "Secondary" (= JSS + SSS) are understood. |
+| `levels` | yes | Primary · JSS; SSS · ND/HND · Degree; Postgraduate | Schools (ASUBEB): ECCDE, Primary, JSS, SSS. Tertiary (Ministry): TVET, NCE, ND, HND, Degree, Postgraduate. "Pry", "Secondary", "ND/HND", "B.Sc", "PGD" and "NTC/NBC" are understood. |
 | `government_code` | no | ASB/UN/001 | ASUBEB's own school number. Strongly recommended: it is the surest way to avoid duplicates. |
 | `town`, `address` | no | Ndume | |
 | `phone`, `email` | no | 0803 123 4567 | Phone numbers are stored in international form (+234…). |
 | `latitude`, `longitude` | no | 5.5320, 7.4860 | Both or neither. |
 
 Download the template from the system (`GET /v1/bulk/institutions/template`), or copy the header row above.
+
+## Tertiary institutions
+
+Universities, polytechnics, colleges of education, technical colleges and colleges of health are
+registered under the **Abia State Ministry of Tertiary Education**, using the same file format. Work with
+the Ministry as your active scope.
+* `type` is required.
+* `lga` is where the institution is located, checked against Abia's 17 LGAs.
+* Each body registers only its own levels: ASUBEB rejects a polytechnic row, and the Ministry rejects a
+  primary-school row, with the reason given.
 
 ## How the import works
 
@@ -42,6 +53,7 @@ name in the same LGA. Case, punctuation and accents are ignored.
 
 ```bash
 python -m syntegra.cli seed-structure ng-abia                      # once: Abia State, ASUBEB + 17 LGEAs, Ministry of Tertiary Education
-python -m syntegra.cli import-schools schools.csv --board-code ASUBEB            # check only
-python -m syntegra.cli import-schools schools.csv --board-code ASUBEB --commit
+python -m syntegra.cli import-institutions schools.csv --board-code ASUBEB                       # check only
+python -m syntegra.cli import-institutions schools.csv --board-code ASUBEB --commit
+python -m syntegra.cli import-institutions tertiary.csv --board-code MIN-TERTIARY-EDUCATION --commit
 ```

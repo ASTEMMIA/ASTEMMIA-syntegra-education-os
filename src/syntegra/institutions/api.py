@@ -1,4 +1,5 @@
-"""School register services: register one school, and bulk import with preview then commit."""
+"""Institution register services, kindergarten to university: register one institution, and
+bulk import with preview then commit (CEDA §4, §10.4; ADR-010, ADR-012)."""
 
 from __future__ import annotations
 
@@ -23,13 +24,18 @@ from syntegra.institutions import events
 from syntegra.institutions.domain import (
     LEVEL_LABEL,
     MAX_ROWS,
+    SCHOOL_LEVELS,
     TEMPLATE_COLUMNS,
+    TYPE_LABEL,
     CleanRow,
+    InstitutionType,
     Level,
+    Placement,
     RowResult,
     fold,
     mark_duplicates,
     summarise,
+    unit_key,
     validate_row,
 )
 from syntegra.institutions.models import Institution, InstitutionLevel
@@ -39,6 +45,8 @@ from syntegra.platform.sequence import next_value
 
 KIND = "institutions"
 MAX_BYTES = 5 * 1024 * 1024
+LEVELS_SETTING = "register.levels"
+AREAS_SETTING = "location.areas"
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,8 +55,9 @@ class InstitutionView:
     institution_code: str
     government_code: str | None
     name: str
-    lga: str
-    lga_scope_id: uuid.UUID
+    institution_type: str
+    location: str
+    parent_scope_id: uuid.UUID
     scope_node_id: uuid.UUID
     levels: list[str]
     town: str | None
@@ -56,31 +65,54 @@ class InstitutionView:
 
 
 def template_csv() -> str:
-    example = [
-        "Community Primary School Ndume",
-        "Umuahia North",
-        "Primary",
-        "",
-        "Ndume",
-        "",
-        "",
-        "",
-        "",
-        "",
-    ]
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(TEMPLATE_COLUMNS)
-    w.writerow(example)
+    w.writerow(
+        [
+            "Community Primary School Ndume",
+            "",
+            "Umuahia North",
+            "Primary",
+            "",
+            "Ndume",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+    )
+    w.writerow(
+        [
+            "Example State Polytechnic",
+            "Polytechnic",
+            "Aba South",
+            "ND; HND",
+            "",
+            "Aba",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+    )
     return out.getvalue()
 
 
-async def _lgea_index(session: AsyncSession) -> dict[str, tuple[str, str]]:
-    """The local units (LGEAs, zones, districts…) of the body the caller works in: children of
-    the active scope above institution level (ADR-010). A unit named "Ohafia LGEA" with label
-    "LGEA" answers to both "Ohafia LGEA" and "Ohafia"; the label comes from the structure file."""
+async def placement(session: AsyncSession) -> Placement:
+    """Where the caller's rows go: the body they work in (its units, or the body itself) and
+    the jurisdiction's local government areas (setting ``location.areas``, from the structure
+    file). Working at the jurisdiction root is refused: an import belongs to one body."""
     ctx = current_context()
-    index: dict[str, tuple[str, str]] = {}
+    root = await governance.tenant_root_scope(session, ctx.tenant_id)
+    if ctx.scope_node_id == root:
+        raise ValidationFailed(
+            "choose the body you are registering institutions for",
+            next_action="Switch to the body (for example ASUBEB or the Ministry) and upload again.",
+        )
+    units: dict[str, tuple[str, str]] = {}
     after = None
     while True:
         page = await governance.list_children(session, ctx.scope_node_id, after=after, limit=200)
@@ -88,34 +120,40 @@ async def _lgea_index(session: AsyncSession) -> dict[str, tuple[str, str]]:
             if n.level < GovernanceLevel.INSTITUTION:
                 suffix = f" {n.local_label}" if n.local_label else ""
                 bare = n.name.removesuffix(suffix).strip() if suffix else n.name
-                index[fold(n.name)] = (str(n.id), bare)
-                index[fold(bare)] = (str(n.id), bare)
+                for key in {*unit_key(n.name), *unit_key(bare)}:
+                    units[key] = (str(n.id), bare)
         if len(page) < 200:
-            return index
+            break
         after = page[-1].id
-
-
-LEVELS_SETTING = "register.levels"
-DEFAULT_LEVELS = frozenset({Level.ECCDE, Level.PRIMARY, Level.JSS, Level.SSS})
+    areas: dict[str, str] = {}
+    for name in await governance.resolve_config(session, ctx.scope_node_id, AREAS_SETTING) or []:
+        for key in unit_key(name):
+            areas[key] = name
+    return Placement(str(ctx.scope_node_id), units, areas)
 
 
 async def allowed_levels(session: AsyncSession) -> frozenset[Level]:
-    """Levels the caller's board registers, from configuration (P4); default: basic education."""
+    """Levels the caller's body registers, from configuration (P4); default: basic education."""
     value = await governance.resolve_config(
         session, current_context().scope_node_id, LEVELS_SETTING
     )
     if value is None:  # not configured: basic education
-        return DEFAULT_LEVELS
+        return SCHOOL_LEVELS
     return frozenset(Level(v) for v in value)  # an empty list means this body registers none yet
 
 
-async def _existing(session: AsyncSession) -> tuple[set[str], set[tuple[str, str]]]:
+async def _existing(session: AsyncSession) -> tuple[set[str], set[tuple[str, str, str]]]:
     rows = (
         await session.execute(
-            select(Institution.government_code, Institution.lga_scope_id, Institution.name_key)
+            select(
+                Institution.government_code,
+                Institution.parent_scope_id,
+                Institution.location_key,
+                Institution.name_key,
+            )
         )
     ).all()
-    return ({c for c, _, _ in rows if c}, {(str(lga), key) for _, lga, key in rows})
+    return ({c for c, *_ in rows if c}, {(str(p), loc, key) for _, p, loc, key in rows})
 
 
 async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | None) -> Institution:
@@ -124,11 +162,11 @@ async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | No
     code = institution_id("NG", seq)
     node = await governance.create_scope_node(
         session,
-        parent_id=uuid.UUID(c.lga_scope_id),
+        parent_id=uuid.UUID(c.parent_scope_id),
         level=GovernanceLevel.INSTITUTION,
         code=code,
         name=c.name,
-        local_label="School",
+        local_label=TYPE_LABEL[c.institution_type],
     )
     inst = Institution(
         scope_node_id=node.id,
@@ -136,7 +174,10 @@ async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | No
         government_code=c.government_code,
         name=c.name,
         name_key=c.name_key,
-        lga_scope_id=uuid.UUID(c.lga_scope_id),
+        parent_scope_id=uuid.UUID(c.parent_scope_id),
+        location=c.location,
+        location_key=fold(c.location),
+        institution_type=c.institution_type.value,
         ownership="public",
         managing_body=managing_body,
         town=c.town,
@@ -160,7 +201,11 @@ async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | No
             aggregate_id=inst.id,
             actor_id=ctx.user_id,
             correlation_id=ctx.correlation_id,
-            payload={"institution_code": code, "levels": [lv.value for lv in c.levels]},
+            payload={
+                "institution_code": code,
+                "type": c.institution_type.value,
+                "levels": [lv.value for lv in c.levels],
+            },
         ),
     )
     await session.flush()
@@ -173,8 +218,8 @@ async def register_institution(
     *,
     managing_body: str | None = None,
 ) -> InstitutionView:
-    """Register one school (same validation as an import row)."""
-    result = validate_row(1, raw, await _lgea_index(session), allowed=await allowed_levels(session))
+    """Register one institution (same validation as an import row)."""
+    result = validate_row(1, raw, await placement(session), allowed=await allowed_levels(session))
     codes, names = await _existing(session)
     mark_duplicates([result], existing_codes=codes, existing_names=names)
     if result.clean is None:
@@ -200,7 +245,7 @@ def _parse_csv(text: str) -> list[dict[str, str]]:
     if missing:
         raise ValidationFailed(
             f"these columns are missing: {', '.join(missing)}",
-            next_action="Use the column names from the template (name, lga, levels, …).",
+            next_action="Use the column names from the template (name, type, lga, levels, …).",
         )
     rows = []
     for raw in reader:
@@ -210,7 +255,7 @@ def _parse_csv(text: str) -> list[dict[str, str]]:
                 f"the file has more than {MAX_ROWS} rows", next_action="Split it by LGA."
             )
     if not rows:
-        raise ValidationFailed("the file has a header but no schools")
+        raise ValidationFailed("the file has a header but no institutions")
     return rows
 
 
@@ -220,15 +265,10 @@ async def preview_import(
     """Steps 1-2 of §10.4: parse and validate every row. Nothing is registered yet."""
     ctx = current_context()
     rows = _parse_csv(csv_text)
-    lgas = await _lgea_index(session)
-    if not lgas:
-        raise ValidationFailed(
-            "there are no LGEAs under the scope you are working in",
-            next_action="Switch to your board (for example ASUBEB) and upload again.",
-        )
+    where = await placement(session)
     allowed = await allowed_levels(session)
     # Row 1 is the header, so data rows are numbered from 2 as in the spreadsheet.
-    results = [validate_row(i, raw, lgas, allowed=allowed) for i, raw in enumerate(rows, start=2)]
+    results = [validate_row(i, raw, where, allowed=allowed) for i, raw in enumerate(rows, start=2)]
     codes, names = await _existing(session)
     mark_duplicates(results, existing_codes=codes, existing_names=names)
     job = BulkJob(
@@ -279,17 +319,24 @@ async def commit_import(
     session: AsyncSession, job_id: uuid.UUID, *, managing_body: str | None
 ) -> dict[str, Any]:
     """Steps 4-5 of §10.4: register every valid row and report. Rows are re-checked first,
-    so a school registered since the preview is skipped, not duplicated."""
+    so an institution registered since the preview is skipped, not duplicated."""
     ctx = current_context()
     job, rows = await get_job(session, job_id)
     if job.kind != KIND:
-        raise ValidationFailed("this is not a school import")
+        raise ValidationFailed("this is not an institution import")
     if job.status != "previewed":
         raise Conflict("this import has already been committed", next_action="Start a new import.")
-    lgas = await _lgea_index(session)
+    if job.scope_node_id != ctx.scope_node_id:
+        raise ValidationFailed(
+            "this import was checked for another body",
+            next_action="Switch to the body it was uploaded for, then register it.",
+        )
+    where = await placement(session)
     allowed = await allowed_levels(session)
     candidates = [r for r in rows if r.status == "valid"]
-    rechecked = [validate_row(r.row_no, _as_raw(r.data), lgas, allowed=allowed) for r in candidates]
+    rechecked = [
+        validate_row(r.row_no, _as_raw(r.data), where, allowed=allowed) for r in candidates
+    ]
     codes, names = await _existing(session)
     mark_duplicates(rechecked, existing_codes=codes, existing_names=names)
     created = skipped = 0
@@ -319,7 +366,7 @@ async def get_institution(session: AsyncSession, inst_id: uuid.UUID) -> Institut
         await session.execute(select(Institution).where(Institution.id == inst_id))
     ).scalar_one_or_none()
     if inst is None:
-        raise NotFound("school not found")
+        raise NotFound("institution not found")
     return (await _views(session, [inst]))[0]
 
 
@@ -334,40 +381,37 @@ async def _views(session: AsyncSession, items: list[Institution]) -> list[Instit
         ).scalars():
             levels[lv.institution_id].append(lv.level)
     order = [lv.value for lv in Level]
-    names: dict[uuid.UUID, str] = {}
-    out = []
-    for i in items:
-        if i.lga_scope_id not in names:
-            unit = await governance.get_scope_node(session, i.lga_scope_id)
-            suffix = f" {unit.local_label}" if unit.local_label else ""
-            names[i.lga_scope_id] = unit.name.removesuffix(suffix) if suffix else unit.name
-        out.append(
-            InstitutionView(
-                i.id,
-                i.institution_code,
-                i.government_code,
-                i.name,
-                names[i.lga_scope_id],
-                i.lga_scope_id,
-                i.scope_node_id,
-                [LEVEL_LABEL[Level(x)] for x in sorted(levels[i.id], key=order.index)],
-                i.town,
-                i.status,
-            )
+    return [
+        InstitutionView(
+            i.id,
+            i.institution_code,
+            i.government_code,
+            i.name,
+            TYPE_LABEL[InstitutionType(i.institution_type)],
+            i.location,
+            i.parent_scope_id,
+            i.scope_node_id,
+            [LEVEL_LABEL[Level(x)] for x in sorted(levels[i.id], key=order.index)],
+            i.town,
+            i.status,
         )
-    return out
+        for i in items
+    ]
 
 
 async def list_institutions(
     session: AsyncSession,
     *,
-    lga_scope_id: uuid.UUID | None,
-    after: uuid.UUID | None,
-    limit: int,
+    parent_scope_id: uuid.UUID | None = None,
+    institution_type: str | None = None,
+    after: uuid.UUID | None = None,
+    limit: int = 50,
 ) -> list[InstitutionView]:
     stmt = select(Institution).order_by(Institution.id).limit(limit)
-    if lga_scope_id is not None:
-        stmt = stmt.where(Institution.lga_scope_id == lga_scope_id)
+    if parent_scope_id is not None:
+        stmt = stmt.where(Institution.parent_scope_id == parent_scope_id)
+    if institution_type is not None:
+        stmt = stmt.where(Institution.institution_type == institution_type)
     if after is not None:
         stmt = stmt.where(Institution.id > after)
     return await _views(session, list((await session.execute(stmt)).scalars()))
@@ -380,6 +424,7 @@ __all__ = [
     "get_institution",
     "get_job",
     "list_institutions",
+    "placement",
     "preview_import",
     "register_institution",
     "template_csv",

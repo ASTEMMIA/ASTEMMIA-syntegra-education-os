@@ -131,7 +131,7 @@ async def seed_structure(
 async def import_schools(
     text: str, source_name: str, tenant_code: str, board_code: str, commit: bool
 ) -> int:
-    """Preview (and with --commit, register) a CSV list of schools under a board (ADR-010)."""
+    """Preview (and with --commit, register) a CSV list of institutions for one body (ADR-012)."""
     from syntegra.institutions import api as institutions
 
     settings = get_settings()
@@ -156,7 +156,7 @@ async def import_schools(
                 summary = await institutions.commit_import(
                     session, job_id, managing_body=board.name[:64]
                 )
-                print(f"registered {summary['created']} schools, skipped {summary['skipped']}")
+                print(f"registered {summary['created']} institutions, skipped {summary['skipped']}")
             else:
                 print("preview only: nothing registered.")
                 print("Run again with --commit to register the valid rows.")
@@ -211,7 +211,11 @@ def main() -> None:
     )
     a.add_argument("--platform-code", default="SYNTEGRA")
     a.add_argument("--admin", help="login for an Abia State administrator (state officer role)")
-    imp = sub.add_parser("import-schools", help="preview or register a CSV list of schools")
+    imp = sub.add_parser(
+        "import-institutions",
+        aliases=["import-schools"],
+        help="preview or register a CSV list of institutions for one body",
+    )
     imp.add_argument("csv_path")
     imp.add_argument("--tenant-code", default="NG-AB")
     imp.add_argument("--board-code", default="ASUBEB")
@@ -237,7 +241,7 @@ def main() -> None:
     elif args.cmd in ("seed-abia", "seed-asubeb"):
         out = asyncio.run(seed_structure("ng-abia", args.platform_code, args.admin))
         print(json.dumps(out, indent=2))
-    elif args.cmd == "import-schools":
+    elif args.cmd in ("import-institutions", "import-schools"):
         from pathlib import Path
 
         csv_file = Path(args.csv_path)

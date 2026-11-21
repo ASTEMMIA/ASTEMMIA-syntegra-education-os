@@ -1,21 +1,68 @@
 {
   "version": 1,
-  "country": {"code": "NG", "name": "Nigeria", "time_zone": "Africa/Lagos", "label": "Federal Ministry of Education"},
-  "jurisdiction": {"code": "NG-AB", "name": "Abia State", "label": "State"},
+  "country": {
+    "code": "NG",
+    "name": "Nigeria",
+    "time_zone": "Africa/Lagos",
+    "label": "Federal Ministry of Education"
+  },
+  "jurisdiction": {
+    "code": "NG-AB",
+    "name": "Abia State",
+    "label": "State"
+  },
+  "areas": [
+    "Aba North",
+    "Aba South",
+    "Arochukwu",
+    "Bende",
+    "Ikwuano",
+    "Isiala Ngwa North",
+    "Isiala Ngwa South",
+    "Isuikwuato",
+    "Obi Ngwa",
+    "Ohafia",
+    "Osisioma",
+    "Ugwunagbo",
+    "Ukwa East",
+    "Ukwa West",
+    "Umuahia North",
+    "Umuahia South",
+    "Umu Nneochi"
+  ],
   "bodies": [
     {
       "code": "ASUBEB",
       "name": "Abia State Universal Basic Education Board",
       "label": "Board",
-      "registers": ["eccde", "primary", "jss", "sss"],
+      "registers": [
+        "eccde",
+        "primary",
+        "jss",
+        "sss"
+      ],
       "units": {
         "label": "LGEA",
         "code_prefix": "LGEA",
         "name_suffix": " LGEA",
         "names": [
-          "Aba North", "Aba South", "Arochukwu", "Bende", "Ikwuano", "Isiala Ngwa North",
-          "Isiala Ngwa South", "Isuikwuato", "Obi Ngwa", "Ohafia", "Osisioma", "Ugwunagbo",
-          "Ukwa East", "Ukwa West", "Umuahia North", "Umuahia South", "Umu Nneochi"
+          "Aba North",
+          "Aba South",
+          "Arochukwu",
+          "Bende",
+          "Ikwuano",
+          "Isiala Ngwa North",
+          "Isiala Ngwa South",
+          "Isuikwuato",
+          "Obi Ngwa",
+          "Ohafia",
+          "Osisioma",
+          "Ugwunagbo",
+          "Ukwa East",
+          "Ukwa West",
+          "Umuahia North",
+          "Umuahia South",
+          "Umu Nneochi"
         ]
       }
     },
@@ -23,7 +70,14 @@
       "code": "MIN-TERTIARY-EDUCATION",
       "name": "Abia State Ministry of Tertiary Education",
       "label": "Ministry",
-      "registers": []
+      "registers": [
+        "tvet",
+        "nce",
+        "nd",
+        "hnd",
+        "degree",
+        "postgraduate"
+      ]
     }
   ]
 }
