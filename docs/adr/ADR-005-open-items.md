@@ -1,0 +1,16 @@
+# ADR-005: Phase 0 open items
+
+Phase 0 scope (§18) that this baseline does not yet deliver:
+
+| Item | CEDA | Notes |
+|------|------|-------|
+| OIDC / OAuth 2.1 JWT verification, MFA, SCIM | §8.3, §10.1 | Only the dev header authenticator exists. It refuses to start in staging/prod. |
+| MDM: person, external_identifier, matching | §4, §6.2 | Includes field-level KMS envelope encryption and HMAC lookup. |
+| Code lists (ISO 3166/639/4217, ISCED) | §7.2 | Versioned `code_list` and `code_value` |
+| Break-glass access, consent and processing purpose | §8.2, §8.4 | |
+| Workflow persistence and SLA scheduler | §22 | The domain model and catalogue are in place; tables and Celery jobs are not. |
+| MSK publisher and Glue schema registry | §10.1, §20 | The outbox relay works with any `Publisher`. |
+| Audit day close, S3 Object Lock anchor, nightly verifier alerting | §9.1 | `cli verify-audit` exists |
+| Read-audit of restricted and special-category data | §9.1 | `append_audit` is ready to call from read paths |
+| Design system and view-model envelope | §14 | |
+| Terraform modules, multi-AZ, DR | §15 | |

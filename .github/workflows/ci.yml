@@ -1,0 +1,89 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: "3.14" }
+      - run: uv sync --frozen
+      - name: Lint and format (ruff)
+        run: uv run ruff check src tests scripts migrations && uv run ruff format --check src tests scripts migrations
+      - name: Types (mypy strict on domain packages)
+        run: uv run mypy
+      - name: Module boundaries (import-linter, §10.2)
+        run: uv run lint-imports
+      - name: Generated DDL is current (§6)
+        run: uv run python scripts/generate_ddl.py --check
+
+  mysql:
+    # Production target: MySQL 9.7 LTS. 26.x Innovation runs as an early warning only.
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.14", "3.15"]
+        mysql: ["9.7.4-oraclelinux9"]
+        include:
+          - { python: "3.14", mysql: "26.10.0-oraclelinux9", innovation: true }
+    continue-on-error: ${{ matrix.innovation == true }}
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env: { MYSQL_ROOT_PASSWORD: root }
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-retries=30
+    env:
+      SYNTEGRA_DATABASE_URL: mysql+asyncmy://root:root@127.0.0.1:3306/
+      SYNTEGRA_TEST_DATABASE_URL: mysql+asyncmy://root:root@127.0.0.1:3306/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: "${{ matrix.python }}" }
+      - run: uv sync --frozen
+      - name: Unit + integration tests (SQLite)
+        run: SYNTEGRA_TEST_DATABASE_URL= uv run pytest -q
+      - name: Migrate MySQL and check for model drift
+        run: uv run alembic upgrade head && uv run alembic check
+      - name: Contract + concurrency tests on MySQL, with coverage gate
+        run: |
+          uv run coverage run -m pytest -q
+          uv run coverage report --fail-under=80 --include='src/syntegra/core/*,src/syntegra/governance/*,src/syntegra/iam/*,src/syntegra/workflow/*,src/syntegra/platform/*'
+
+  enterprise-runtime:
+    # The exact runtime: RHEL 10 UBI with Red Hat's python3.14, against MySQL 9.7 LTS.
+    runs-on: ubuntu-latest
+    container: registry.access.redhat.com/ubi10/ubi:10.1
+    services:
+      mysql:
+        image: mysql:9.7.4-oraclelinux9
+        env: { MYSQL_ROOT_PASSWORD: root }
+        options: >-
+          --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-retries=30
+    env:
+      UV_PYTHON: /usr/bin/python3.14
+      UV_PYTHON_DOWNLOADS: never
+      SYNTEGRA_DATABASE_URL: mysql+asyncmy://root:root@mysql:3306/
+      SYNTEGRA_TEST_DATABASE_URL: mysql+asyncmy://root:root@mysql:3306/
+    steps:
+      - run: dnf install -y --nodocs python3.14 python3.14-devel gcc git tar && cat /etc/redhat-release && python3.14 --version
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen
+      - run: uv run alembic upgrade head && uv run pytest -q
+
+  image:
+    needs: [static, mysql, enterprise-runtime]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the UBI 10 image
+        run: docker build -t syntegra:ci .
+      - name: Smoke test the image
+        run: |
+          docker run -d --name api -e SYNTEGRA_ENV=dev -e SYNTEGRA_DEV_AUTH=true -p 8000:8000 syntegra:ci
+          for i in $(seq 1 30); do curl -fs localhost:8000/healthz && break; sleep 1; done
+          docker exec api sh -c 'cat /etc/redhat-release && python3.14 --version'

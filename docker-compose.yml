@@ -1,0 +1,28 @@
+# Local development stack: MySQL 9.7 LTS on Oracle Linux 9, app on RHEL 10 UBI (ADR-002, ADR-006).
+# Production runs on Amazon RDS for MySQL 9.7 (Multi-AZ DB cluster), ECS/EKS and MSK (CEDA §15).
+services:
+  mysql:
+    image: mysql:9.7.4-oraclelinux9
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: syntegra
+      MYSQL_PASSWORD: syntegra
+    command: ["--default-time-zone=+00:00", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+    ports: ["3306:3306"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      retries: 20
+  mysql-grants:
+    image: mysql:9.7.4-oraclelinux9
+    depends_on: { mysql: { condition: service_healthy } }
+    entrypoint: ["mysql", "-hmysql", "-uroot", "-proot", "-e", "GRANT ALL ON *.* TO 'syntegra'@'%'"]
+  api:
+    build: .
+    depends_on: { mysql-grants: { condition: service_completed_successfully } }
+    environment:
+      SYNTEGRA_ENV: dev
+      SYNTEGRA_DEV_AUTH: "true"
+      SYNTEGRA_DATABASE_URL: mysql+asyncmy://syntegra:syntegra@mysql:3306/
+    command: ["sh", "-c", "alembic upgrade head && uvicorn syntegra.web.app:create_app --factory --host 0.0.0.0 --port 8000"]
+    ports: ["8000:8000"]
