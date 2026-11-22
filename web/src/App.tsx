@@ -15,6 +15,7 @@ import { AdmissionsPage } from "./pages/Admissions";
 import { ImportPage, LearnerPage, LearnersPage } from "./pages/Learners";
 import { CalendarPage } from "./pages/Calendar";
 import { MessagesPage, ModerationPage, useUnread } from "./pages/Messages";
+import { MonitoringPage } from "./pages/Monitoring";
 
 const RECORDS = ["/", "/documents", "/files", "/file-plan", "/capture", "/batches", "/dispositions", "/oversight"];
 
@@ -68,6 +69,7 @@ function Shell({ children }: { children: React.ReactNode }) {
                 </span>
               )}
             </NavLink>
+            {s.can("monitoring:view") && <NavLink to="/monitoring">Monitoring</NavLink>}
             {s.can("message:moderate") && <NavLink to="/moderation">Reports</NavLink>}
             {!parentOnly &&
               school.filter((n) => n.show).map((n) => (
@@ -161,6 +163,7 @@ export function App() {
         <Route path="/messages" element={<MessagesPage />} />
         <Route path="/messages/:id" element={<MessagesPage />} />
         <Route path="/moderation" element={<ModerationPage />} />
+        <Route path="/monitoring" element={<MonitoringPage />} />
         <Route path="/documents/:id" element={<DocumentPage />} />
         <Route path="/files" element={<FilesPage />} />
         <Route path="/files/:id" element={<FilePage />} />

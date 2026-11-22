@@ -137,6 +137,8 @@ PERMISSIONS: dict[str, PermissionDef] = {
             "class:manage", "Classes — rooms, arms, class teachers, subjects", T.INTERNAL
         ),
         PermissionDef("calendar:manage", "Academic calendar — sessions and terms", T.INTERNAL),
+        # Government Monitoring Dashboard (ADR-031): counts only, no personal details
+        PermissionDef("monitoring:view", "Monitoring dashboard — view", T.INTERNAL),
         # Messaging (msg, ADR-030)
         PermissionDef("message:moderate", "Messaging — handle reported messages", T.CONFIDENTIAL),
         PermissionDef(
@@ -191,8 +193,13 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "audit:view": Cell.YES,
         "policy:publish": Cell.YES,
     },
-    "FED": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
+    "FED": {
+        "tenant:manage": Cell.YES,
+        "scope_node:manage": Cell.YES,
+        "monitoring:view": Cell.YES,
+    },
     "STA": {
+        "monitoring:view": Cell.YES,
         "message:oversee": Cell.YES,
         "calendar:manage": Cell.YES,
         "tenant:manage": Cell.YES,
@@ -244,6 +251,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "document:view_restricted": Cell.YES,  # HR casework
     },
     "IADM": {
+        "monitoring:view": Cell.YES,
         "message:moderate": Cell.YES,
         "learner:register": Cell.YES,
         "admission:decide": Cell.PARTIAL,
@@ -268,6 +276,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "records:admin": Cell.YES,
     },
     "HEAD": {
+        "monitoring:view": Cell.YES,
         "message:moderate": Cell.YES,
         "message:oversee": Cell.YES,
         "learner:register": Cell.YES,
@@ -289,6 +298,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
     },
     # Inspectors observe lessons (§29) and may appraise where the state assigns them.
     "INSP": {
+        "monitoring:view": Cell.YES,
         "appraisal:view": Cell.YES,
         "appraisal:conduct": Cell.YES,
         "cpd:view": Cell.YES,

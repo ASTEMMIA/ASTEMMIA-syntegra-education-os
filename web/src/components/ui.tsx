@@ -171,3 +171,8 @@ export function UserPicker({ id, value, onChange }: { id: string; value: UserHit
     </div>
   );
 }
+
+/** Marks a made-up record (ADR-031) wherever a learner or teacher is shown. */
+export function DemoBadge({ demo }: { demo?: boolean }) {
+  return demo ? <span className="badge demo-badge">Demonstration data</span> : null;
+}

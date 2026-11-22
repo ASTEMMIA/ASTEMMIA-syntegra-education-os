@@ -170,6 +170,7 @@ class PupilIn:
     person_id: uuid.UUID | None = None  # the person is already registered (e.g. a sibling)
     not_duplicate_of: tuple[uuid.UUID, ...] = ()  # confirmed different people
     override_reason: str | None = None
+    demo: bool = False  # demonstration data (ADR-031): never matched with real people
 
 
 async def _person_for(session: AsyncSession, crypto: FieldCrypto, p: PupilIn) -> uuid.UUID:
@@ -185,7 +186,7 @@ async def _person_for(session: AsyncSession, crypto: FieldCrypto, p: PupilIn) ->
         other_names=(p.other_names or "").strip() or None,
         date_of_birth=p.date_of_birth,
         sex_at_registration=_sex(p.sex),
-        source_system="learners",
+        source_system=mdm.DEMO_SOURCE if p.demo else "learners",
     )
     await _same_child(session, crypto, data, p)
     r = await mdm.create_person(
@@ -241,7 +242,13 @@ async def _same_child(
 
 
 async def _guardian_person(
-    session: AsyncSession, crypto: FieldCrypto, name: str, phone: str, email: str | None
+    session: AsyncSession,
+    crypto: FieldCrypto,
+    name: str,
+    phone: str,
+    email: str | None,
+    *,
+    demo: bool = False,
 ) -> uuid.UUID:
     """The guardian's person record: matched when already registered (e.g. a sibling's
     parent), created otherwise."""
@@ -255,7 +262,7 @@ async def _guardian_person(
         given_name=" ".join(parts[:-1]),
         family_name=parts[-1],
         contacts=tuple(contacts),
-        source_system="learners",
+        source_system=mdm.DEMO_SOURCE if demo else "learners",
     )
     # A parent of another learner: the same phone and surname is the same guardian (siblings
     # share one record instead of each creating a copy of the parent).
@@ -271,6 +278,9 @@ async def _guardian_person(
                 PersonContact.value == contacts[0].value,
                 Person.id.in_(select(LearnerGuardian.guardian_person_id)),
                 Person.status == "active",
+                (Person.source_system == mdm.DEMO_SOURCE)
+                if demo
+                else or_(Person.source_system.is_(None), Person.source_system != mdm.DEMO_SOURCE),
             )
             .execution_options(**_bypass())
         )
@@ -370,6 +380,7 @@ class EnrolmentView:
     valid_to: date | None
     exit_reason: str | None
     age_override: str | None
+    demo: bool = False  # demonstration data (ADR-031)
 
 
 async def _person(session: AsyncSession, person_id: uuid.UUID) -> Person:
@@ -446,6 +457,7 @@ async def _eview(session: AsyncSession, e: Enrolment) -> EnrolmentView:
         e.valid_to,
         e.exit_reason,
         e.age_override,
+        mdm.is_demo(person.source_system),
     )
 
 
@@ -575,7 +587,12 @@ async def _enrol(
         )
         raise Conflict(f"{learner.learner_number} is already enrolled at {where}")
     guardian = await _guardian_person(
-        session, crypto, pupil.guardian_name, pupil.guardian_phone, pupil.guardian_email
+        session,
+        crypto,
+        pupil.guardian_name,
+        pupil.guardian_phone,
+        pupil.guardian_email,
+        demo=pupil.demo,
     )
     await _link_guardian(session, learner, guardian, _relationship(pupil.guardian_relationship))
     start = data.starts_on or max(today(), sess.starts_on)
@@ -700,6 +717,7 @@ class MemberView:
     date_of_birth: date | None
     admission_number: str | None
     since: date
+    demo: bool = False
 
 
 async def class_list(session: AsyncSession, class_id: uuid.UUID) -> list[MemberView]:
@@ -727,6 +745,7 @@ async def class_list(session: AsyncSession, class_id: uuid.UUID) -> list[MemberV
             p.date_of_birth,
             e.admission_number,
             m.valid_from,
+            mdm.is_demo(p.source_system),
         )
         for m, e, ln, p in rows
     ]
@@ -1811,6 +1830,7 @@ class LearnerView:
     current: EnrolmentView | None
     history: list[EnrolmentView]
     guardians: list[GuardianView]
+    demo: bool = False
 
 
 async def _learner(session: AsyncSession, learner_id: uuid.UUID) -> Learner:
@@ -1903,6 +1923,7 @@ async def get_learner(session: AsyncSession, learner_id: uuid.UUID) -> LearnerVi
         next((v for v in views if v.status == "active"), None),
         views,
         guardians,
+        mdm.is_demo(p.source_system),
     )
 
 

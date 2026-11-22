@@ -287,6 +287,7 @@ export interface ClassYear {
 }
 
 export interface Member {
+  demo?: boolean; // demonstration data (ADR-031)
   enrolment_id: string;
   learner_id: string;
   learner_number: string;
@@ -300,6 +301,7 @@ export interface Member {
 }
 
 export interface EnrolmentRef {
+  demo?: boolean; // demonstration data (ADR-031)
   id: string;
   learner_id: string;
   learner_number: string;
@@ -322,6 +324,7 @@ export interface EnrolmentRef {
 }
 
 export interface LearnerRef {
+  demo?: boolean; // demonstration data (ADR-031)
   id: string;
   learner_number: string;
   person_id: string;

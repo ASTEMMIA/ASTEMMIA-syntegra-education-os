@@ -39,6 +39,7 @@ from syntegra.web.routers import (
     institutions,
     learners,
     messaging,
+    monitoring,
     persons,
     private_schools,
     records,
@@ -118,6 +119,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(learners.router)
     app.include_router(learners.public)
     app.include_router(messaging.router)
+    app.include_router(monitoring.router)
     if (Path(settings.web_dir) / "index.html").is_file():
         app.include_router(spa.build_router(Path(settings.web_dir)))
     app.include_router(private_schools.public)

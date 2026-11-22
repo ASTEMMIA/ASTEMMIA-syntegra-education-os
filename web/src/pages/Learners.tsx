@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router";
 import { ApiError, api, download, saveBlob } from "../api";
 import { useAcademicSession, useClasses, useYears } from "../academic";
 import { useLoad, useSession } from "../session";
-import { Button, Dl, Empty, ErrorNote, Field, Loading, PageHead, Status, useAction } from "../components/ui";
+import { Button, DemoBadge, Dl, Empty, ErrorNote, Field, Loading, PageHead, Status, useAction } from "../components/ui";
 import { NeedInstitution } from "../App";
 import { SessionPicker } from "./Classes";
 import type { EnrolmentRef, Items, LearnerRef } from "../types";
@@ -66,6 +66,7 @@ export function LearnersPage() {
                     <Link to={`/learners/${e.learner_id}`} className="strong">
                       {e.learner_name}
                     </Link>
+                    <DemoBadge demo={e.demo} />
                     <div className="mono muted small">
                       {e.learner_number}
                       {e.admission_number ? ` · ${e.admission_number}` : ""}
@@ -266,6 +267,11 @@ export function LearnerPage() {
   return (
     <div className="page">
       <PageHead eyebrow={x.learner_number} title={`${x.first_name} ${x.other_names ? `${x.other_names} ` : ""}${x.surname}`} />
+      {x.demo && (
+        <p className="demo-banner" role="note">
+          <strong>Demonstration data.</strong> This learner and their guardian are made up for the demonstration; they are not real people.
+        </p>
+      )}
       <div className="two">
         <section className="panel">
           <Dl

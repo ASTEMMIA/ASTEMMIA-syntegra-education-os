@@ -182,6 +182,51 @@ async def import_schools(
     return 0
 
 
+async def pilot(text: str, tenant_code: str, demo_learners: int | None) -> int:
+    """Register the pilot institutions from the confidential file, and with ``demo_learners``
+    fill them with demonstration data (ADR-031)."""
+    from syntegra.pilot import api as pilot_api
+    from syntegra.platform.crypto import build_field_crypto
+
+    settings = get_settings()
+    if demo_learners is not None and settings.env == "prod":
+        raise SystemExit("demonstration data is never loaded in production (SYNTEGRA_ENV=prod)")
+    crypto = build_field_crypto(
+        env=settings.env,
+        kek_b64=settings.field_kek_b64.get_secret_value() if settings.field_kek_b64 else None,
+        previous_keks_b64=settings.field_previous_keks_b64,
+        blind_index_key_b64=(
+            settings.blind_index_key_b64.get_secret_value()
+            if settings.blind_index_key_b64
+            else None
+        ),
+    )
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        state = await governance.tenant_by_code(session, tenant_code)
+        if state is None:
+            raise SystemExit(f"{tenant_code} not found: run seed-structure first")
+        pilots = await pilot_api.load_institutions(session, state.id, text)
+        for p in pilots:
+            print(f"{'registered' if p.created else 'already registered'}: {p.name} ({p.lga})")
+        if demo_learners is not None:
+            out = await pilot_api.load_demo(
+                session, crypto, state.id, pilots, learners_total=demo_learners
+            )
+            for school in out.schools:
+                print(
+                    f"demo: {school.name}: {school.learners} learners, {school.teachers} "
+                    f"teachers, {school.classes} classes"
+                )
+            print(
+                f"demonstration data: {out.learners} learners, {out.teachers} teachers, "
+                f"{out.classes} classes"
+            )
+    await engine.dispose()
+    return 0
+
+
 async def send_email(once: bool) -> None:
     """Deliver queued email (ADR-015). Dev: printed here and to the log."""
     from syntegra.platform.email import build_sender, dispatch_once
@@ -459,6 +504,15 @@ def main() -> None:
     imp.add_argument(
         "--commit", action="store_true", help="register the valid rows (default: preview only)"
     )
+    pl = sub.add_parser("pilot-load", help="register the pilot institutions (confidential file)")
+    pl.add_argument("csv_path")
+    pl.add_argument("--tenant-code", default="NG-AB")
+    pd = sub.add_parser(
+        "pilot-demo", help="register the pilot institutions and add demonstration data"
+    )
+    pd.add_argument("csv_path")
+    pd.add_argument("--tenant-code", default="NG-AB")
+    pd.add_argument("--learners", type=int, default=2500)
     em = sub.add_parser("send-email", help="deliver queued email (dev: printed)")
     em.add_argument("--once", action="store_true")
     et = sub.add_parser("email-test", help="send one test message through the configured sender")
@@ -517,6 +571,19 @@ def main() -> None:
                 import_schools(text, csv_file.name, args.tenant_code, args.board_code, args.commit)
             )
         )
+    elif args.cmd in ("pilot-load", "pilot-demo"):
+        from pathlib import Path
+
+        from syntegra.core.errors import DomainError
+
+        learners = args.learners if args.cmd == "pilot-demo" else None
+        pilot_text = Path(args.csv_path).read_text(encoding="utf-8-sig")
+        try:
+            raise SystemExit(asyncio.run(pilot(pilot_text, args.tenant_code, learners)))
+        except DomainError as exc:
+            raise SystemExit(
+                f"{exc}\n" + "\n".join((getattr(exc, "next_action", "") or "").split(" | "))
+            ) from None
     elif args.cmd == "send-email":
         asyncio.run(send_email(args.once))
     elif args.cmd == "email-test":

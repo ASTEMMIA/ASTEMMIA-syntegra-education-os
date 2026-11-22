@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../api";
 import { LEVEL_NAME, useAcademicSession, useClasses, useTeachers, useYears } from "../academic";
 import { useLoad, useSession } from "../session";
-import { Button, Dl, Empty, ErrorNote, Field, Loading, PageHead, Status, useAction } from "../components/ui";
+import { Button, DemoBadge, Dl, Empty, ErrorNote, Field, Loading, PageHead, Status, useAction } from "../components/ui";
 import { NeedInstitution } from "../App";
 import type { ClassRef, Items, Member, OfferingRef, Room, StaffRef, SubjectRef } from "../types";
 import { date, words } from "../format";
@@ -264,6 +264,7 @@ export function ClassPage() {
                   <Link to={`/learners/${m.learner_id}`}>
                     {m.surname}, {m.first_name} {m.other_names ?? ""}
                   </Link>{" "}
+                  <DemoBadge demo={m.demo} />{" "}
                   <span className="muted small">
                     {m.sex} · {date(m.date_of_birth)} · <span className="mono">{m.admission_number ?? m.learner_number}</span>
                   </span>

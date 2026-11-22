@@ -167,6 +167,14 @@ class PersonView:
 # --------------------------------------------------------------------------- helpers
 
 
+DEMO_SOURCE = "demo"
+
+
+def is_demo(source_system: str | None) -> bool:
+    """A demonstration record (ADR-031): made up for a demonstration, shown as such everywhere."""
+    return source_system == DEMO_SOURCE
+
+
 def _ctx_actor() -> uuid.UUID | None:
     return current_context().user_id
 
@@ -365,7 +373,11 @@ async def find_candidates(
         .scalars()
         .all()
     )
-    people = [p for p in people if p.id not in (exclude or set())]
+    # Demonstration records are matched only with each other, never with real people (ADR-031).
+    demo = is_demo(data.source_system)
+    people = [
+        p for p in people if p.id not in (exclude or set()) and is_demo(p.source_system) == demo
+    ]
     facts = await _facts_for(session, people)
     limits = await thresholds(session, data.scope_node_id or ctx.scope_node_id)
     visible = set((await session.execute(governance.subtree_of(ctx.scope_node_id))).scalars())

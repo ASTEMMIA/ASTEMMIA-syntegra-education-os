@@ -59,5 +59,13 @@ async def test_seed_for_browser_run(sm, world, engine):
             series["GOV/2"].id,
             rec.FileIn("PTA and SBMC minutes 2025", "Head teacher's office", year=2025),
         )
+    # Made-up pilot institutions with demonstration learners, for the monitoring walk-through.
+    from syntegra.pilot import api as pilot
+    from tests.integration.test_pilot import PILOT
+    from tests.integration.test_staff import CRYPTO
+
+    async with sm() as s, s.begin():
+        pilots = await pilot.load_institutions(s, a.tenant.id, PILOT)
+        await pilot.load_demo(s, CRYPTO, a.tenant.id, pilots, learners_total=60)
     await engine.dispose()
     shutil.copy(str(engine.url.database), str(TARGET))
