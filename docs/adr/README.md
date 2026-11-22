@@ -27,3 +27,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [020](ADR-020-adult-and-non-formal-education.md) | Adult and non-formal education in the register (Adult level, adult learning centres); NMEC and MDCN | Accepted (Abia-SAME registers centres) |
 | [021](ADR-021-institution-ownership.md) | Ownership in the register: private tertiary institutions and centres listed by their body; private schools still apply online | Accepted |
 | [022](ADR-022-gazetteer-addresses.md) | Gazetteer: one address register for people and institutions (address, address type, party address with history; Person_Address view) | Accepted |
+| [023](ADR-023-hrms-and-crm-programme.md) | Full HRMS and CRM: scope and phases (Staff 360 and postings first; full payroll for all; CRM for staff, parents, partners and candidates) | Accepted (programme) |
