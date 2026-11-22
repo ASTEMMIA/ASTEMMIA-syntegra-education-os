@@ -75,6 +75,18 @@
       "covers": {"levels": [], "types": ["college_of_health"]}
     },
     {
+      "code": "MDCN", "name": "Medical and Dental Council of Nigeria", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": [], "types": ["university"]},
+      "note": "Accredits medical and dental schools, which sit within universities (CEDA §2)."
+    },
+    {
+      "code": "NMEC", "name": "National Commission for Mass Literacy, Adult and Non-Formal Education", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": ["adult"], "types": ["adult_learning_centre"]},
+      "note": "Adult literacy, post-literacy and non-formal education (CEDA §2, §23.8). Each state has its own agency for mass education, which registers the centres."
+    },
+    {
       "code": "UBEC", "name": "Universal Basic Education Commission", "scope": "national",
       "countries": ["NG"], "roles": ["funding"],
       "covers": {"levels": ["eccde", "primary", "jss"], "types": ["school"]}

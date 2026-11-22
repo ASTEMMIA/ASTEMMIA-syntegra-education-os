@@ -40,7 +40,7 @@ class Institution(Base, TenantScoped):
         CheckConstraint("ownership IN ('public','private')", name="ownership"),
         CheckConstraint(
             "institution_type IN ('school','university','polytechnic','college_of_education',"
-            "'technical_college','college_of_health','other_tertiary')",
+            "'technical_college','college_of_health','other_tertiary','adult_learning_centre')",
             name="institution_type",
         ),
         CheckConstraint("status IN ('active','closed')", name="status"),
@@ -88,7 +88,7 @@ class InstitutionLevel(Base, TenantScoped):
         UniqueConstraint("tenant_id", "institution_id", "level"),
         CheckConstraint(
             "level IN ('eccde','primary','jss','sss',"
-            "'tvet','nce','nd','hnd','degree','postgraduate')",
+            "'tvet','nce','nd','hnd','degree','postgraduate','adult')",
             name="level",
         ),
         {"schema": "org"},

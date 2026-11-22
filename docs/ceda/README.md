@@ -4,13 +4,13 @@ The Canonical Enterprise Data Architecture is the authoritative blueprint this c
 
 | File | What it is |
 |------|------------|
-| `EdTech-003-v1.4.docx` | Version 1.4 (22 Nov 2026), all changes accepted |
-| `EdTech-003-v1.4-tracked-changes.docx` | The same, with every change from v1.0 shown as a tracked change for review |
+| `EdTech-003-v1.5.docx` | Version 1.5 (22 Nov 2026), all changes accepted |
+| `EdTech-003-v1.5-tracked-changes.docx` | The same, with every change from v1.0 shown as a tracked change for review |
 
 Version 1.1 recorded the decisions taken while building Phases 0 and 1 (ADR-000 to ADR-016). Version
-1.2 adds ADR-017 (email through Amazon SES), 1.3 adds ADR-018 (bounce and complaint processing), and 1.4 adds ADR-019 (education bodies).
+1.2 adds ADR-017 (email through Amazon SES), 1.3 adds ADR-018 (bounce and complaint processing), 1.4 adds ADR-019 (education bodies), and 1.5 adds ADR-020 (adult and non-formal education).
 Earlier versions are in the git history.
-* **Amended in place:** §0, §2, §6.2, §8.3, §10.1, §11, §15 (with a new Email row in §15.1) and §28.
+* **Amended in place:** §0, §2 (including the adult and non-formal sector row), §6.2, §8.3, §10.1, §11, §15 (with a new Email row in §15.1) and §28.
 * **New:** §34, which holds the change record, the decision register, and summaries of the Abia State
   structure, the institution register, Person 360, private-school registration, single sign-on and MFA,
   the platform baseline and the open items.

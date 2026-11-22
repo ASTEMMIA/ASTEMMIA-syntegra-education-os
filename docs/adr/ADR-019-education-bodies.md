@@ -21,7 +21,7 @@ the state structure (ADR-011), which bodies exist differs by country.
   Abia. They are the structure (ADR-010, ADR-011), and `GET /v1/education-bodies` lists them from it.
 * **External bodies** come from **catalogue files**, as data:
   * `structures/bodies/ng.json`: WAEC, NECO, NABTEB, NBAIS, JAMB, NUC, NBTE, NCCE, NMCN, CHPRBN,
-    UBEC, TETFund, TRCN, NERDC.
+    UBEC, TETFund, TRCN, NERDC, plus MDCN and NMEC (ADR-020).
   * `structures/bodies/international.json`: Cambridge, Pearson Edexcel, IB, College Board.
   * A structure file names the catalogues that apply (`"education_bodies": ["ng", "international"]`)
     and `seed-structure` loads them. `seed-bodies` re-applies them after an edit. Bodies are never

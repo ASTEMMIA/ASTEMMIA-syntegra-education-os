@@ -56,7 +56,7 @@ CREATE TABLE org.institution (
 	CONSTRAINT uq_institution_tenant_id_government_code UNIQUE (tenant_id, government_code), 
 	CONSTRAINT uq_institution_tenant_id_parent_scope_id_location_key_name_key UNIQUE (tenant_id, parent_scope_id, location_key, name_key), 
 	CONSTRAINT ck_institution_ownership CHECK (ownership IN ('public','private')), 
-	CONSTRAINT ck_institution_institution_type CHECK (institution_type IN ('school','university','polytechnic','college_of_education','technical_college','college_of_health','other_tertiary')), 
+	CONSTRAINT ck_institution_institution_type CHECK (institution_type IN ('school','university','polytechnic','college_of_education','technical_college','college_of_health','other_tertiary','adult_learning_centre')), 
 	CONSTRAINT ck_institution_status CHECK (status IN ('active','closed')), 
 	CONSTRAINT fk_institution_head_person_id_person FOREIGN KEY(head_person_id) REFERENCES mdm.person (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -112,7 +112,7 @@ CREATE TABLE org.institution_level (
 	id BINARY(16) NOT NULL, 
 	CONSTRAINT pk_institution_level PRIMARY KEY (id), 
 	CONSTRAINT uq_institution_level_tenant_id_institution_id_level UNIQUE (tenant_id, institution_id, level), 
-	CONSTRAINT ck_institution_level_level CHECK (level IN ('eccde','primary','jss','sss','tvet','nce','nd','hnd','degree','postgraduate')), 
+	CONSTRAINT ck_institution_level_level CHECK (level IN ('eccde','primary','jss','sss','tvet','nce','nd','hnd','degree','postgraduate','adult')), 
 	CONSTRAINT fk_institution_level_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

@@ -377,4 +377,50 @@ async def test_api(client, sm, world):
     assert bulk.status_code == 200 and bulk.json()["summary"]["valid"] == 1
     async with sm() as s:
         assert await verify_all_days(s, tenant.id)
-        assert (await s.execute(select(func.count()).select_from(EducationBody))).scalar() == 18
+        assert (await s.execute(select(func.count()).select_from(EducationBody))).scalar() == 20
+
+
+async def test_adult_learning_centres_and_nmec(sm, world):
+    """A state body that registers adult and non-formal centres. Which body does so in Abia is
+    still to be confirmed; here ASUBEB's levels are widened, as a structure file would."""
+    from sqlalchemy import update
+
+    from syntegra.governance.models import ConfigSetting
+
+    tenant, bodies, ids = await _setup(sm, world)
+    async with sm() as s, s.begin():
+        with at(tenant, bodies["ASUBEB"]):
+            await s.execute(
+                update(ConfigSetting)
+                .where(
+                    ConfigSetting.scope_node_id == bodies["ASUBEB"],
+                    ConfigSetting.setting_key == "register.levels",
+                )
+                .values(value=["eccde", "primary", "jss", "sss", "adult"])
+            )
+    await _register(
+        sm,
+        tenant,
+        bodies["ASUBEB"],
+        "name,type,lga,levels,address_line1,town,postcode\n"
+        "TEST Ohafia Mass Literacy Centre,Literacy centre,Ohafia,Adult literacy,1 Rd,Ohafia,"
+        "440001\n",
+    )
+    async with sm() as s, s.begin():
+        with at(tenant, bodies["ASUBEB"]):
+            centre = (
+                await s.execute(select(Institution).where(Institution.name.contains("Literacy")))
+            ).scalar_one()
+            assert centre.institution_type == "adult_learning_centre"
+            v = await eb.link_institution(s, centre.id, body_code="NMEC", link_type="accreditation")
+            assert v.body_name.startswith("National Commission for Mass Literacy")
+            with pytest.raises(ValidationFailed, match="does not cover"):
+                await eb.link_institution(
+                    s, ids["Community Primary School Ndume"], body_code="NMEC", link_type="approval"
+                )
+
+    async with sm() as s, s.begin():
+        with at(tenant, bodies["MIN-TERTIARY-EDUCATION"]):
+            await eb.link_institution(
+                s, ids["State University"], body_code="MDCN", link_type="accreditation"
+            )

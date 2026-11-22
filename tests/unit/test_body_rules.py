@@ -117,3 +117,36 @@ def test_new_candidate_number_schemes():
     assert normalize_identifier(IdentifierScheme.NABTEB, "nab-2026-0001") == "NAB20260001"
     with pytest.raises(ValidationFailed):
         normalize_identifier(IdentifierScheme.NECO, "12")
+
+
+def test_adult_and_non_formal_education():
+    from syntegra.institutions.domain import InstitutionType, Level, parse_levels, parse_type
+
+    levels, err = parse_levels("Adult literacy; post-literacy")
+    assert levels == [Level.ADULT] and err is None
+    assert parse_type("", levels) == (InstitutionType.ADULT_LEARNING_CENTRE, None)
+    assert parse_type("Mass Literacy Centre", levels)[0] is InstitutionType.ADULT_LEARNING_CENTRE
+    assert "Adult level only" in parse_type("Literacy centre", [Level.ADULT, Level.PRIMARY])[1]
+    assert "for adult learning centres" in parse_type("School", [Level.PRIMARY, Level.ADULT])[1]
+    ng = {b.code: b for b in load_catalogue("ng").bodies}
+    assert (
+        _check(
+            ng["NMEC"],
+            link_type="accreditation",
+            exam_code=None,
+            reference=None,
+            institution_type="adult_learning_centre",
+            institution_levels={"adult"},
+        )
+        == []
+    )
+    assert (
+        "does not cover"
+        in _check(
+            ng["NMEC"],
+            link_type="accreditation",
+            exam_code=None,
+            reference=None,
+            institution_levels={"primary"},
+        )[0]
+    )

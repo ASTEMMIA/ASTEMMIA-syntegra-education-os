@@ -33,6 +33,7 @@ class Level(StrEnum):
     HND = "hnd"  # Higher National Diploma, polytechnics (6)
     DEGREE = "degree"  # first degree (6)
     POSTGRADUATE = "postgraduate"  # PGD, master's, doctorate (7-8)
+    ADULT = "adult"  # adult and non-formal: basic and post-literacy, continuing education (ADR-020)
 
 
 LEVEL_LABEL = {
@@ -46,10 +47,12 @@ LEVEL_LABEL = {
     Level.HND: "HND",
     Level.DEGREE: "Degree",
     Level.POSTGRADUATE: "Postgraduate",
+    Level.ADULT: "Adult and non-formal",
 }
 SCHOOL_LEVELS = frozenset({Level.ECCDE, Level.PRIMARY, Level.JSS, Level.SSS})
-TERTIARY_LEVELS = frozenset(set(Level) - SCHOOL_LEVELS)
-LEVEL_HINT = "Use Primary, JSS, SSS, ECCDE, TVET, NCE, ND, HND, Degree or Postgraduate."
+ADULT_LEVELS = frozenset({Level.ADULT})
+TERTIARY_LEVELS = frozenset(set(Level) - SCHOOL_LEVELS - ADULT_LEVELS)
+LEVEL_HINT = "Use Primary, JSS, SSS, ECCDE, TVET, NCE, ND, HND, Degree, Postgraduate or Adult."
 
 # Spellings seen in real lists. "secondary" means JSS + SSS; "nd/hnd" splits into both.
 _LEVEL_ALIASES: dict[str, tuple[Level, ...]] = {
@@ -104,6 +107,17 @@ _LEVEL_ALIASES: dict[str, tuple[Level, ...]] = {
     "mba": (Level.POSTGRADUATE,),
     "phd": (Level.POSTGRADUATE,),
     "doctorate": (Level.POSTGRADUATE,),
+    "adult": (Level.ADULT,),
+    "adultandnonformal": (Level.ADULT,),
+    "adulteducation": (Level.ADULT,),
+    "adultliteracy": (Level.ADULT,),
+    "literacy": (Level.ADULT,),
+    "basicliteracy": (Level.ADULT,),
+    "postliteracy": (Level.ADULT,),
+    "massliteracy": (Level.ADULT,),
+    "nonformal": (Level.ADULT,),
+    "nonformaleducation": (Level.ADULT,),
+    "continuingeducation": (Level.ADULT,),
 }
 
 
@@ -115,6 +129,7 @@ class InstitutionType(StrEnum):
     TECHNICAL_COLLEGE = "technical_college"
     COLLEGE_OF_HEALTH = "college_of_health"  # health technology, nursing and midwifery
     OTHER_TERTIARY = "other_tertiary"
+    ADULT_LEARNING_CENTRE = "adult_learning_centre"  # literacy and non-formal centres (ADR-020)
 
 
 TYPE_LABEL = {
@@ -125,6 +140,7 @@ TYPE_LABEL = {
     InstitutionType.TECHNICAL_COLLEGE: "Technical college",
     InstitutionType.COLLEGE_OF_HEALTH: "College of health",
     InstitutionType.OTHER_TERTIARY: "Other tertiary",
+    InstitutionType.ADULT_LEARNING_CENTRE: "Adult learning centre",
 }
 _TYPE_ALIASES: dict[str, InstitutionType] = {
     "school": InstitutionType.SCHOOL,
@@ -149,10 +165,20 @@ _TYPE_ALIASES: dict[str, InstitutionType] = {
     "collegeofnursing": InstitutionType.COLLEGE_OF_HEALTH,
     "other": InstitutionType.OTHER_TERTIARY,
     "othertertiary": InstitutionType.OTHER_TERTIARY,
+    "adultlearningcentre": InstitutionType.ADULT_LEARNING_CENTRE,
+    "adultlearningcenter": InstitutionType.ADULT_LEARNING_CENTRE,
+    "adulteducationcentre": InstitutionType.ADULT_LEARNING_CENTRE,
+    "adulteducationcenter": InstitutionType.ADULT_LEARNING_CENTRE,
+    "literacycentre": InstitutionType.ADULT_LEARNING_CENTRE,
+    "literacycenter": InstitutionType.ADULT_LEARNING_CENTRE,
+    "adultliteracycentre": InstitutionType.ADULT_LEARNING_CENTRE,
+    "massliteracycentre": InstitutionType.ADULT_LEARNING_CENTRE,
+    "nonformaleducationcentre": InstitutionType.ADULT_LEARNING_CENTRE,
+    "continuingeducationcentre": InstitutionType.ADULT_LEARNING_CENTRE,
 }
 TYPE_HINT = (
     "Use School, University, Polytechnic, College of education, Technical college, "
-    "College of health or Other tertiary."
+    "College of health, Other tertiary or Adult learning centre."
 )
 
 TEMPLATE_COLUMNS = (
@@ -283,10 +309,19 @@ def parse_type(value: str | None, levels: list[Level]) -> tuple[InstitutionType 
     if not key:
         if levels and set(levels) <= SCHOOL_LEVELS:
             return InstitutionType.SCHOOL, None
+        if levels and set(levels) <= ADULT_LEVELS:
+            return InstitutionType.ADULT_LEARNING_CENTRE, None
         return None, f"type is required for tertiary institutions. {TYPE_HINT}"
     kind = _TYPE_ALIASES.get(key)
     if kind is None:
         return None, f"type '{value}' is not recognised. {TYPE_HINT}"
+    # Adult and non-formal learning is its own sector (CEDA §2, §23.8; ADR-020).
+    if kind is InstitutionType.ADULT_LEARNING_CENTRE:
+        if set(levels) != {Level.ADULT}:
+            return None, "an adult learning centre offers the Adult level only"
+        return kind, None
+    if Level.ADULT in levels:
+        return None, "the Adult level is for adult learning centres; set the type to one"
     if kind is InstitutionType.SCHOOL and set(levels) & TERTIARY_LEVELS:
         return None, "a school cannot offer tertiary levels; set the type, e.g. Polytechnic"
     if kind is not InstitutionType.SCHOOL and levels and not set(levels) & TERTIARY_LEVELS:

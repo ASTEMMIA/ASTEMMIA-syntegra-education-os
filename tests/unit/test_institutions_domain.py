@@ -50,7 +50,7 @@ def test_levels_accept_real_world_spellings(text, levels):
 
 def test_unknown_level_says_what_to_use():
     _, err = parse_levels("Diploma of Awesomeness")
-    assert "Primary, JSS, SSS, ECCDE, TVET, NCE, ND, HND, Degree or Postgraduate" in err
+    assert "Primary, JSS, SSS, ECCDE, TVET, NCE, ND, HND, Degree, Postgraduate or Adult" in err
 
 
 @pytest.mark.parametrize(

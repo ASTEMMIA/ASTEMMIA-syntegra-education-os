@@ -12,7 +12,7 @@ your active scope, when you upload. Load them from one spreadsheet saved as **CS
 | `name` | yes | Community Primary School Ndume | 3–200 characters |
 | `type` | tertiary only | Polytechnic | School (default), University, Polytechnic, College of education, Technical college, College of health, Other tertiary. "Poly", "COE" and "School of Nursing" are understood. |
 | `lga` | yes | Umuahia North | One of Abia's 17 LGAs. "Umuahia North LGEA" and "umuahia north l.g.a." also work. |
-| `levels` | yes | Primary · JSS; SSS · ND/HND · Degree; Postgraduate | Schools (ASUBEB): ECCDE, Primary, JSS, SSS. Tertiary (Ministry): TVET, NCE, ND, HND, Degree, Postgraduate. "Pry", "Secondary", "ND/HND", "B.Sc", "PGD" and "NTC/NBC" are understood. |
+| `levels` | yes | Primary · JSS; SSS · ND/HND · Degree; Postgraduate | Schools (ASUBEB): ECCDE, Primary, JSS, SSS. Tertiary (Ministry): TVET, NCE, ND, HND, Degree, Postgraduate. Adult learning centres: Adult (ADR-020). "Pry", "Secondary", "ND/HND", "B.Sc", "PGD" and "NTC/NBC" are understood. |
 | `government_code` | no | ASB/UN/001 | ASUBEB's own school number. Strongly recommended: it is the surest way to avoid duplicates. |
 | `address_line1` | **yes** in Abia | 12 Market Road | Street or plot. A column headed "Address" or "Street" also works. |
 | `address_line2` | no | Off Amaekpu Junction | Landmark, PMB, area. |
