@@ -499,6 +499,9 @@ async def _approve(session: AsyncSession, app: RegistrationApplication) -> uuid.
     )
     session.add(inst)
     await session.flush()
+    from syntegra.mdm.gazetteer import link_institution_premises  # avoids an import cycle
+
+    await link_institution_premises(session, inst)
     for lv in clean.levels:
         session.add(
             InstitutionLevel(

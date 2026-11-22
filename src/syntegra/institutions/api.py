@@ -227,6 +227,9 @@ async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | No
     )
     session.add(inst)
     await session.flush()
+    from syntegra.mdm.gazetteer import link_institution_premises  # avoids an import cycle
+
+    await link_institution_premises(session, inst)
     for lv in c.levels:
         session.add(InstitutionLevel(scope_node_id=node.id, institution_id=inst.id, level=lv.value))
     publish(

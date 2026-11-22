@@ -26,3 +26,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [019](ADR-019-education-bodies.md) | Education bodies (WAEC, NECO, NABTEB, JAMB, NUC, NBTE, NCCE…) and institutions' exam centres, codes and accreditations | Accepted (result exchange open) |
 | [020](ADR-020-adult-and-non-formal-education.md) | Adult and non-formal education in the register (Adult level, adult learning centres); NMEC and MDCN | Accepted (Abia-SAME registers centres) |
 | [021](ADR-021-institution-ownership.md) | Ownership in the register: private tertiary institutions and centres listed by their body; private schools still apply online | Accepted |
+| [022](ADR-022-gazetteer-addresses.md) | Gazetteer: one address register for people and institutions (address, address type, party address with history; Person_Address view) | Accepted |

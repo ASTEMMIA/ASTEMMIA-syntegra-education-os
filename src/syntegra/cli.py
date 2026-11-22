@@ -49,6 +49,9 @@ async def bootstrap(admin_login: str, code: str, name: str, region: str) -> dict
     sm = make_sessionmaker(engine)
     async with sm() as session, session.begin():
         await iam.seed_builtin_roles(session)
+        from syntegra.mdm.gazetteer import seed_address_types
+
+        await seed_address_types(session)
         tenant = await governance.create_root_tenant(
             session,
             code=code,
@@ -258,6 +261,35 @@ async def import_body_links(text: str, tenant_code: str, board_code: str, commit
     return 0
 
 
+async def backfill_addresses(tenant_code: str) -> int:
+    """Give institutions registered before the gazetteer (ADR-022) their PREMISES address."""
+    from sqlalchemy import select
+
+    from syntegra.institutions.models import Institution
+    from syntegra.mdm.gazetteer import addresses_of, link_institution_premises
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    done = 0
+    async with sm() as session, session.begin():
+        tenant = await governance.tenant_by_code(session, tenant_code)
+        if tenant is None:
+            raise SystemExit(f"{tenant_code} not found")
+        with use_context(
+            RequestContext(
+                tenant.id, tenant.root_scope_node_id, None, system=True, purpose="backfill"
+            )
+        ):
+            for inst in (await session.execute(select(Institution))).scalars().all():
+                if not await addresses_of(session, institution_id=inst.id):
+                    await link_institution_premises(session, inst)
+                    done += 1
+    await engine.dispose()
+    print(f"linked premises addresses for {done} institutions")
+    return 0
+
+
 async def email_events(once: bool) -> None:
     """Apply SES bounce, complaint and delivery events from the SQS queue (ADR-018)."""
     import boto3
@@ -402,6 +434,8 @@ def main() -> None:
     il.add_argument("--tenant-code", default="NG-AB")
     il.add_argument("--board-code", default="ASUBEB")
     il.add_argument("--commit", action="store_true")
+    bf = sub.add_parser("backfill-addresses", help="premises addresses for existing institutions")
+    bf.add_argument("--tenant-code", default="NG-AB")
     ev = sub.add_parser("email-events", help="apply SES bounce/complaint/delivery events")
     ev.add_argument("--once", action="store_true")
     us = sub.add_parser("email-unsuppress", help="allow a suppressed email address again")
@@ -457,6 +491,8 @@ def main() -> None:
                 import_body_links(links_text, args.tenant_code, args.board_code, args.commit)
             )
         )
+    elif args.cmd == "backfill-addresses":
+        raise SystemExit(asyncio.run(backfill_addresses(args.tenant_code)))
     elif args.cmd == "email-events":
         asyncio.run(email_events(args.once))
     elif args.cmd == "email-unsuppress":
