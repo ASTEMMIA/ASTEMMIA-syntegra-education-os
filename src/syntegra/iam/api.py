@@ -206,6 +206,15 @@ async def user_names(
     return {i: n for i, n in rows.all()}
 
 
+async def person_of_user(session: AsyncSession, user_id: uuid.UUID | None) -> uuid.UUID | None:
+    """The Person 360 record a user account belongs to, if linked."""
+    if user_id is None:
+        return None
+    return (
+        await session.execute(select(AppUser.person_id).where(AppUser.id == user_id))
+    ).scalar_one_or_none()
+
+
 async def search_users(
     session: AsyncSession, tenant_id: uuid.UUID, text: str, limit: int = 20
 ) -> list[UserView]:

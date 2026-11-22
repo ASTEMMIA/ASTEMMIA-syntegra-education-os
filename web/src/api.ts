@@ -31,6 +31,7 @@ export class ApiError extends Error {
     readonly detail: string,
     readonly nextAction?: string,
     readonly fields: { field: string; message: string }[] = [],
+    readonly extra: Record<string, unknown> = {},
   ) {
     super(detail || title);
   }
@@ -112,6 +113,7 @@ async function toError(r: Response): Promise<ApiError> {
     s("detail") ?? (r.status === 0 ? "The server could not be reached." : ""),
     s("next_action"),
     fields,
+    body,
   );
 }
 
@@ -143,6 +145,8 @@ interface Options {
   method?: "GET" | "POST";
   json?: unknown;
   form?: FormData;
+  body?: string; // a raw body, e.g. a CSV file's text
+  contentType?: string;
   query?: Query;
   key?: string; // reuse when retrying the same action
   raw?: boolean;
@@ -158,7 +162,7 @@ function url(path: string, query?: Query): string {
 }
 
 async function send(path: string, o: Options): Promise<Response> {
-  const method = o.method ?? (o.json !== undefined || o.form ? "POST" : "GET");
+  const method = o.method ?? (o.json !== undefined || o.form || o.body !== undefined ? "POST" : "GET");
   const headers: Record<string, string> = { Accept: "application/json, */*" };
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
   const scope = getScope();
@@ -170,6 +174,9 @@ async function send(path: string, o: Options): Promise<Response> {
     body = JSON.stringify(o.json);
   } else if (o.form) {
     body = o.form;
+  } else if (o.body !== undefined) {
+    headers["Content-Type"] = o.contentType ?? "text/plain";
+    body = o.body;
   }
   return fetch(url(path, o.query), { method, headers, body, credentials: "same-origin" });
 }

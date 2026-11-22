@@ -28,6 +28,9 @@ async function as(login, fn, { width = 1360 } = {}) {
   await page.getByRole("button", { name: "Sign out" }).waitFor();
   try {
     await fn(page);
+  } catch (e) {
+    await page.screenshot({ path: `${SHOTS}/FAILED-${login}.png`, fullPage: true }).catch(() => {});
+    throw e;
   } finally {
     await ctx.close();
   }

@@ -33,7 +33,8 @@ export interface Institution {
   institution_code: string;
   government_code: string | null;
   lga: string;
-  levels: string[];
+  levels: string[]; // labels: "Primary", "JSS"
+  level_codes: string[]; // codes: "primary", "jss"
   scope_node_id: string;
 }
 
@@ -194,4 +195,205 @@ export interface RepoRow {
 
 export interface Items<T> {
   items: T[];
+}
+
+// --------------------------------------------------------------------------- classes and learners (ADR-029)
+
+export interface Period {
+  id: string;
+  kind: "session" | "term" | "semester";
+  name: string;
+  starts_on: string;
+  ends_on: string;
+  status: "planned" | "current" | "closed";
+  set_at: string;
+  parts: Period[];
+}
+
+export interface Room {
+  id: string;
+  code: string;
+  name: string;
+  kind: string;
+  capacity: number;
+  building: string | null;
+}
+
+export interface SubjectRef {
+  id: string;
+  code: string;
+  name: string;
+  group: string | null;
+  institution_id: string | null;
+  units: number | null;
+  year_code: string | null;
+  semester: number | null;
+  department: string | null;
+}
+
+export interface Assignment {
+  id: string;
+  staff_id: string;
+  staff_name: string | null;
+  role: "lead" | "assistant";
+  valid_from: string;
+  valid_to: string | null;
+  note: string | null;
+}
+
+export interface OfferingRef {
+  id: string;
+  period_id: string;
+  class_group_id: string | null;
+  year_code: string;
+  subject: SubjectRef;
+  kind: "core" | "elective" | "optional";
+  periods_per_week: number | null;
+  units: number | null;
+  capacity: number | null;
+  active: boolean;
+  teachers: Assignment[];
+}
+
+export interface ClassRef {
+  id: string;
+  institution_id: string;
+  session_id: string;
+  session_name: string;
+  year_code: string;
+  year_name: string;
+  level: string;
+  arm: string;
+  name: string;
+  capacity: number;
+  room: Room | null;
+  class_teacher_staff_id: string | null;
+  class_teacher_name: string | null;
+  assistant_staff_id: string | null;
+  status: "active" | "closed";
+  size: number;
+  places_left: number;
+  subjects?: OfferingRef[];
+  warnings?: string[];
+}
+
+export interface ClassYear {
+  code: string;
+  name: string;
+  level: string;
+  order: number;
+  typical_age: number | null;
+}
+
+export interface Member {
+  enrolment_id: string;
+  learner_id: string;
+  learner_number: string;
+  surname: string;
+  first_name: string;
+  other_names: string | null;
+  sex: string;
+  date_of_birth: string | null;
+  admission_number: string | null;
+  since: string;
+}
+
+export interface EnrolmentRef {
+  id: string;
+  learner_id: string;
+  learner_number: string;
+  learner_name: string;
+  institution_id: string;
+  institution_name: string;
+  session_id: string;
+  session_name: string;
+  year_code: string;
+  year_name: string;
+  class_id: string | null;
+  class_name: string | null;
+  status: string;
+  source: string;
+  admission_number: string | null;
+  valid_from: string;
+  valid_to: string | null;
+  exit_reason: string | null;
+  age_override: string | null;
+}
+
+export interface LearnerRef {
+  id: string;
+  learner_number: string;
+  person_id: string;
+  surname: string;
+  first_name: string;
+  other_names: string | null;
+  sex: string;
+  date_of_birth: string | null;
+  status: string;
+  first_enrolled_on: string | null;
+  current: EnrolmentRef | null;
+  history: EnrolmentRef[];
+  guardians: { person_id: string; name: string; relationship: string; parental_responsibility: boolean; contact_priority: number; phone: string | null; court_order_flag: boolean }[];
+}
+
+export interface Application {
+  id: string;
+  reference: string;
+  session_id: string;
+  year_code: string;
+  year_name: string;
+  status: string;
+  channel: "school" | "online" | "transfer";
+  applicant_name: string;
+  date_of_birth: string;
+  sex: string;
+  previous_school: string | null;
+  guardian_name: string;
+  guardian_phone: string;
+  guardian_relationship: string;
+  assessment_score: string | null;
+  assessment_note: string | null;
+  decision_note: string | null;
+  offer_expires_on: string | null;
+  due_by: string;
+  overdue: boolean;
+  age_note: string | null;
+  enrolment_id: string | null;
+  history: { at: string; status: string; by: string | null; note: string | null }[];
+}
+
+export interface Transfer {
+  id: string;
+  learner_id: string;
+  learner_number: string;
+  learner_name: string;
+  from_institution: string;
+  to_institution: string;
+  to_institution_id: string;
+  year_code: string;
+  effective_on: string;
+  reason: string;
+  status: string;
+  decision_note: string | null;
+}
+
+export interface Curriculum {
+  version_id: string;
+  code: string;
+  name: string;
+  authority: string;
+  version: number;
+  status: string;
+  note: string | null;
+  adoptions: { scope_id: string; scope_name: string; years: string; from_session: string }[];
+}
+
+export interface StaffRef {
+  id: string;
+  staff_number: string;
+  surname: string;
+  first_name: string;
+  category: string;
+  registered_teacher: boolean;
+  current_post: { institution_id: string | null; position: string } | null;
 }

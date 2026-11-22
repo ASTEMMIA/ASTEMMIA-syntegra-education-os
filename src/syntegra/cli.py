@@ -16,10 +16,12 @@ import asyncio
 import json
 from datetime import date
 
+import syntegra.academic.models
 import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
+import syntegra.learners.models
 import syntegra.mdm.models
 import syntegra.records.models  # noqa: F401
 from syntegra.core.audit import ChainBreak
@@ -235,6 +237,27 @@ async def seed_bodies(catalogues: list[str]) -> dict[str, list[str]]:
     return out
 
 
+async def seed_curriculum(tenant_code: str) -> str:
+    """Load the national school curriculum into a state as a published version (ADR-029).
+    Adopting it stays a decision for the state: POST /v1/curricula/{id}/adopt."""
+    from syntegra.academic import api as academic
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        tenant = await governance.tenant_by_code(session, tenant_code.upper())
+        if tenant is None:
+            raise SystemExit(f"{tenant_code} not found")
+        ctx = RequestContext(
+            tenant.id, tenant.root_scope_node_id, None, system=True, purpose="seed-curriculum"
+        )
+        with use_context(ctx):
+            version = await academic.seed_national_curriculum(session)
+    await engine.dispose()
+    return str(version)
+
+
 async def import_body_links(text: str, tenant_code: str, board_code: str, commit: bool) -> int:
     """Check (and with --commit, record) a CSV of institution links: exam centre numbers, JAMB
     codes, accreditations (ADR-019), for the institutions under one body."""
@@ -439,6 +462,8 @@ def main() -> None:
     em.add_argument("--once", action="store_true")
     et = sub.add_parser("email-test", help="send one test message through the configured sender")
     et.add_argument("--to", required=True)
+    sc = sub.add_parser("seed-curriculum", help="load the national school curriculum")
+    sc.add_argument("--tenant", required=True, help="e.g. NG-AB")
     sb = sub.add_parser("seed-bodies", help="add or update external education bodies")
     sb.add_argument("catalogues", nargs="*", default=["ng", "international"])
     il = sub.add_parser(
@@ -495,6 +520,8 @@ def main() -> None:
         asyncio.run(send_email(args.once))
     elif args.cmd == "email-test":
         asyncio.run(email_test(args.to))
+    elif args.cmd == "seed-curriculum":
+        print(json.dumps({"curriculum_version_id": asyncio.run(seed_curriculum(args.tenant))}))
     elif args.cmd == "seed-bodies":
         print(json.dumps(asyncio.run(seed_bodies(args.catalogues)), indent=2))
     elif args.cmd == "import-body-links":

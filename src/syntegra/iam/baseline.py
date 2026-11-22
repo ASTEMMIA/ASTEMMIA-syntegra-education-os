@@ -126,6 +126,20 @@ PERMISSIONS: dict[str, PermissionDef] = {
         PermissionDef(
             "records:oversight", "Records — State oversight of the repository", T.SPECIAL
         ),
+        # Learner registration and classes (learners, academic; ADR-029)
+        PermissionDef(
+            "learner:register",
+            "Learners — applications, enrolment, class placement, transfers",
+            T.CONFIDENTIAL,
+        ),
+        PermissionDef("admission:decide", "Admissions — offer, waitlist or reject", T.CONFIDENTIAL),
+        PermissionDef(
+            "class:manage", "Classes — rooms, arms, class teachers, subjects", T.INTERNAL
+        ),
+        PermissionDef("calendar:manage", "Academic calendar — sessions and terms", T.INTERNAL),
+        PermissionDef(
+            "teaching:assign", "Teaching — assign subject teachers and lecturers", T.INTERNAL
+        ),
     ]
 }
 
@@ -169,6 +183,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
     },
     "FED": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
     "STA": {
+        "calendar:manage": Cell.YES,
         "tenant:manage": Cell.YES,
         "scope_node:manage": Cell.YES,
         "staff:view": Cell.YES,
@@ -218,6 +233,11 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "document:view_restricted": Cell.YES,  # HR casework
     },
     "IADM": {
+        "learner:register": Cell.YES,
+        "admission:decide": Cell.PARTIAL,
+        "class:manage": Cell.YES,
+        "calendar:manage": Cell.YES,  # a tertiary institution sets its own semesters
+        "teaching:assign": Cell.YES,
         "scope_node:manage": Cell.YES,
         "person:view": Cell.YES,
         "person:create": Cell.YES,
@@ -236,6 +256,10 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "records:admin": Cell.YES,
     },
     "HEAD": {
+        "learner:register": Cell.YES,
+        "admission:decide": Cell.YES,
+        "class:manage": Cell.YES,
+        "teaching:assign": Cell.YES,
         "scope_node:manage": Cell.YES,
         "person:view": Cell.YES,
         "staff:view": Cell.YES,
@@ -258,6 +282,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
     },
     # Registrar is the Person 360 data steward (§4 "Registry officer", §16.1).
     "REG": {
+        "learner:register": Cell.YES,
         "person:view": Cell.YES,
         "person:create": Cell.YES,
         "person:edit": Cell.YES,

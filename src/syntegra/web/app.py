@@ -8,10 +8,12 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+import syntegra.academic.models
 import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
+import syntegra.learners.models
 import syntegra.mdm.models
 import syntegra.records.models  # noqa: F401
 from syntegra.iam.oidc import OidcClient
@@ -25,6 +27,7 @@ from syntegra.platform.settings import Settings, get_settings
 from syntegra.web import problems
 from syntegra.web.auth import build_keys, token_policy
 from syntegra.web.routers import (
+    academic,
     addresses,
     auth,
     development,
@@ -33,6 +36,7 @@ from syntegra.web.routers import (
     health,
     iam,
     institutions,
+    learners,
     persons,
     private_schools,
     records,
@@ -100,6 +104,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(staff.router)
     app.include_router(development.router)
     app.include_router(records.router)
+    app.include_router(academic.router)
+    app.include_router(learners.router)
+    app.include_router(learners.public)
     if (Path(settings.web_dir) / "index.html").is_file():
         app.include_router(spa.build_router(Path(settings.web_dir)))
     app.include_router(private_schools.public)

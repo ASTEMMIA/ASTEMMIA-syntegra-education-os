@@ -1,6 +1,34 @@
 -- Generated from the Python domain model by scripts/generate_ddl.py. Do not edit.
 CREATE DATABASE IF NOT EXISTS acad;
 
+CREATE TABLE acad.academic_period (
+	kind VARCHAR(10) NOT NULL, 
+	name VARCHAR(40) NOT NULL, 
+	parent_id BINARY(16), 
+	seq INTEGER NOT NULL, 
+	starts_on DATE NOT NULL, 
+	ends_on DATE NOT NULL, 
+	status VARCHAR(8) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_academic_period PRIMARY KEY (id), 
+	CONSTRAINT uq_academic_period_tenant_id_scope_node_id_kind_name_parent_id UNIQUE (tenant_id, scope_node_id, kind, name, parent_id), 
+	CONSTRAINT ck_academic_period_kind CHECK (kind IN ('session','term','semester')), 
+	CONSTRAINT ck_academic_period_status CHECK (status IN ('planned','current','closed')), 
+	CONSTRAINT ck_academic_period_dates CHECK (ends_on > starts_on), 
+	CONSTRAINT fk_academic_period_parent_id_academic_period FOREIGN KEY(parent_id) REFERENCES acad.academic_period (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_academic_period_tenant_id_parent_id ON acad.academic_period (tenant_id, parent_id);
+
 CREATE TABLE acad.appraisal_cycle (
 	name VARCHAR(100) NOT NULL, 
 	period_start DATE NOT NULL, 
@@ -58,6 +86,68 @@ CREATE TABLE acad.cpd_programme (
 	CONSTRAINT ck_cpd_programme_points CHECK (credit_points >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE acad.curriculum (
+	code VARCHAR(24) NOT NULL, 
+	name VARCHAR(150) NOT NULL, 
+	authority VARCHAR(150) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_curriculum PRIMARY KEY (id), 
+	CONSTRAINT uq_curriculum_tenant_id_code UNIQUE (tenant_id, code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE acad.curriculum_version (
+	curriculum_id BINARY(16) NOT NULL, 
+	version INTEGER NOT NULL, 
+	status VARCHAR(10) NOT NULL, 
+	note VARCHAR(1000), 
+	published_at DATETIME(6), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_curriculum_version PRIMARY KEY (id), 
+	CONSTRAINT uq_curriculum_version_tenant_id_curriculum_id_version UNIQUE (tenant_id, curriculum_id, version), 
+	CONSTRAINT ck_curriculum_version_status CHECK (status IN ('draft','published','retired')), 
+	CONSTRAINT fk_curriculum_version_curriculum_id_curriculum FOREIGN KEY(curriculum_id) REFERENCES acad.curriculum (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE acad.learner (
+	person_id BINARY(16) NOT NULL, 
+	learner_number VARCHAR(20) NOT NULL, 
+	status VARCHAR(14) NOT NULL, 
+	first_enrolled_on DATE, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_learner PRIMARY KEY (id), 
+	CONSTRAINT uq_learner_tenant_id_person_id UNIQUE (tenant_id, person_id), 
+	CONSTRAINT uq_learner_tenant_id_learner_number UNIQUE (tenant_id, learner_number), 
+	CONSTRAINT ck_learner_status CHECK (status IN ('enrolled','not_enrolled','completed')), 
+	CONSTRAINT fk_learner_person_id_person FOREIGN KEY(person_id) REFERENCES mdm.person (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE acad.staff (
 	person_id BINARY(16) NOT NULL, 
 	staff_number VARCHAR(20) NOT NULL, 
@@ -89,6 +179,55 @@ CREATE TABLE acad.staff (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX ix_staff_tenant_id_status ON acad.staff (tenant_id, status);
+
+CREATE TABLE acad.admission_application (
+	reference VARCHAR(20) NOT NULL, 
+	institution_id BINARY(16) NOT NULL, 
+	session_id BINARY(16) NOT NULL, 
+	year_code VARCHAR(8) NOT NULL, 
+	status VARCHAR(14) NOT NULL, 
+	channel VARCHAR(8) NOT NULL, 
+	given_name VARCHAR(100) NOT NULL, 
+	family_name VARCHAR(100) NOT NULL, 
+	other_names VARCHAR(150), 
+	date_of_birth DATE NOT NULL, 
+	sex VARCHAR(1) NOT NULL, 
+	previous_school VARCHAR(200), 
+	guardian_name VARCHAR(200) NOT NULL, 
+	guardian_phone VARCHAR(20) NOT NULL, 
+	guardian_email VARCHAR(254), 
+	guardian_relationship VARCHAR(14) NOT NULL, 
+	person_id BINARY(16), 
+	assessment_score NUMERIC(5, 2), 
+	assessment_note VARCHAR(500), 
+	decision_note VARCHAR(500), 
+	offer_expires_on DATE, 
+	due_by DATE NOT NULL, 
+	decided_by BINARY(16), 
+	decided_at DATETIME(6), 
+	enrolment_id BINARY(16), 
+	history JSON NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_admission_application PRIMARY KEY (id), 
+	CONSTRAINT uq_admission_application_tenant_id_reference UNIQUE (tenant_id, reference), 
+	CONSTRAINT ck_admission_application_status CHECK (status IN ('submitted','under_review','assessment','offered','waitlisted','rejected','accepted','declined','enrolled','withdrawn','expired')), 
+	CONSTRAINT ck_admission_application_channel CHECK (channel IN ('school','online','transfer')), 
+	CONSTRAINT ck_admission_application_score CHECK (assessment_score IS NULL OR assessment_score BETWEEN 0 AND 100), 
+	CONSTRAINT fk_admission_application_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_admission_application_session_id_academic_period FOREIGN KEY(session_id) REFERENCES acad.academic_period (id), 
+	CONSTRAINT fk_admission_application_person_id_person FOREIGN KEY(person_id) REFERENCES mdm.person (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_admission_application_tenant_id_institution_id_status ON acad.admission_application (tenant_id, institution_id, status);
 
 CREATE TABLE acad.appraisal (
 	cycle_id BINARY(16) NOT NULL, 
@@ -133,6 +272,56 @@ CREATE TABLE acad.appraisal (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX ix_appraisal_tenant_id_staff_id ON acad.appraisal (tenant_id, staff_id);
+
+CREATE TABLE acad.curriculum_adoption (
+	version_id BINARY(16) NOT NULL, 
+	years VARCHAR(255) NOT NULL, 
+	from_session VARCHAR(9) NOT NULL, 
+	adopted_by BINARY(16), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_curriculum_adoption PRIMARY KEY (id), 
+	CONSTRAINT uq_curriculum_adoption_tenant_id_scope_node_id_version_i_aff2 UNIQUE (tenant_id, scope_node_id, version_id, from_session), 
+	CONSTRAINT fk_curriculum_adoption_version_id_curriculum_version FOREIGN KEY(version_id) REFERENCES acad.curriculum_version (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE acad.learner_guardian (
+	learner_id BINARY(16) NOT NULL, 
+	guardian_person_id BINARY(16) NOT NULL, 
+	relationship VARCHAR(14) NOT NULL, 
+	parental_responsibility BOOL NOT NULL, 
+	contact_priority INTEGER NOT NULL, 
+	lives_with BOOL NOT NULL, 
+	court_order_flag BOOL NOT NULL, 
+	valid_from DATE NOT NULL, 
+	valid_to DATE, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_learner_guardian PRIMARY KEY (id), 
+	CONSTRAINT uq_learner_guardian_tenant_id_learner_id_guardian_person_id UNIQUE (tenant_id, learner_id, guardian_person_id), 
+	CONSTRAINT ck_learner_guardian_relationship CHECK (relationship IN ('mother','father','guardian','grandparent','sibling','aunt_uncle','foster_carer','sponsor','self','other')), 
+	CONSTRAINT ck_learner_guardian_priority CHECK (contact_priority BETWEEN 1 AND 9), 
+	CONSTRAINT fk_learner_guardian_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id), 
+	CONSTRAINT fk_learner_guardian_guardian_person_id_person FOREIGN KEY(guardian_person_id) REFERENCES mdm.person (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_learner_guardian_tenant_id_guardian_person_id ON acad.learner_guardian (tenant_id, guardian_person_id);
 
 CREATE TABLE acad.lesson_observation (
 	staff_id BINARY(16) NOT NULL, 
@@ -232,6 +421,31 @@ CREATE INDEX ix_posting_request_tenant_id_staff_id ON acad.posting_request (tena
 
 CREATE INDEX ix_posting_request_tenant_id_status ON acad.posting_request (tenant_id, status);
 
+CREATE TABLE acad.room (
+	institution_id BINARY(16) NOT NULL, 
+	code VARCHAR(20) NOT NULL, 
+	name VARCHAR(100) NOT NULL, 
+	kind VARCHAR(16) NOT NULL, 
+	capacity INTEGER NOT NULL, 
+	building VARCHAR(100), 
+	active BOOL NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_room PRIMARY KEY (id), 
+	CONSTRAINT uq_room_tenant_id_institution_id_code UNIQUE (tenant_id, institution_id, code), 
+	CONSTRAINT ck_room_kind CHECK (kind IN ('classroom','laboratory','workshop','ict','library','hall','lecture_theatre','other')), 
+	CONSTRAINT ck_room_capacity CHECK (capacity BETWEEN 1 AND 2000), 
+	CONSTRAINT fk_room_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE acad.staff_post (
 	staff_id BINARY(16) NOT NULL, 
 	post_scope_id BINARY(16) NOT NULL, 
@@ -296,6 +510,34 @@ CREATE TABLE acad.staff_qualification (
 
 CREATE INDEX ix_staff_qualification_tenant_id_staff_id ON acad.staff_qualification (tenant_id, staff_id);
 
+CREATE TABLE acad.subject (
+	code VARCHAR(16) NOT NULL, 
+	name VARCHAR(150) NOT NULL, 
+	group_name VARCHAR(60), 
+	institution_id BINARY(16), 
+	institution_key VARCHAR(36) NOT NULL, 
+	units INTEGER, 
+	year_code VARCHAR(8), 
+	semester INTEGER, 
+	department VARCHAR(100), 
+	active BOOL NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_subject PRIMARY KEY (id), 
+	CONSTRAINT uq_subject_tenant_id_institution_key_code UNIQUE (tenant_id, institution_key, code), 
+	CONSTRAINT ck_subject_units CHECK (units IS NULL OR units BETWEEN 0 AND 30), 
+	CONSTRAINT ck_subject_semester CHECK (semester IS NULL OR semester IN (1, 2)), 
+	CONSTRAINT fk_subject_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE acad.teacher_registration (
 	staff_id BINARY(16) NOT NULL, 
 	body_code VARCHAR(24) NOT NULL, 
@@ -348,6 +590,42 @@ CREATE TABLE acad.appraisal_appeal (
 	CONSTRAINT fk_appraisal_appeal_appraisal_id_appraisal FOREIGN KEY(appraisal_id) REFERENCES acad.appraisal (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE acad.class_group (
+	institution_id BINARY(16) NOT NULL, 
+	session_id BINARY(16) NOT NULL, 
+	year_code VARCHAR(8) NOT NULL, 
+	arm VARCHAR(20) NOT NULL, 
+	name VARCHAR(60) NOT NULL, 
+	capacity INTEGER NOT NULL, 
+	room_id BINARY(16), 
+	class_teacher_staff_id BINARY(16), 
+	assistant_staff_id BINARY(16), 
+	curriculum_version_id BINARY(16), 
+	status VARCHAR(8) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_class_group PRIMARY KEY (id), 
+	CONSTRAINT uq_class_group_tenant_id_institution_id_session_id_year_code_arm UNIQUE (tenant_id, institution_id, session_id, year_code, arm), 
+	CONSTRAINT ck_class_group_capacity CHECK (capacity BETWEEN 1 AND 120), 
+	CONSTRAINT ck_class_group_status CHECK (status IN ('active','closed')), 
+	CONSTRAINT fk_class_group_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_class_group_session_id_academic_period FOREIGN KEY(session_id) REFERENCES acad.academic_period (id), 
+	CONSTRAINT fk_class_group_room_id_room FOREIGN KEY(room_id) REFERENCES acad.room (id), 
+	CONSTRAINT fk_class_group_class_teacher_staff_id_staff FOREIGN KEY(class_teacher_staff_id) REFERENCES acad.staff (id), 
+	CONSTRAINT fk_class_group_assistant_staff_id_staff FOREIGN KEY(assistant_staff_id) REFERENCES acad.staff (id), 
+	CONSTRAINT fk_class_group_curriculum_version_id_curriculum_version FOREIGN KEY(curriculum_version_id) REFERENCES acad.curriculum_version (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_class_group_tenant_id_class_teacher_staff_id ON acad.class_group (tenant_id, class_teacher_staff_id);
+
 CREATE TABLE acad.cpd_participation (
 	staff_id BINARY(16) NOT NULL, 
 	programme_id BINARY(16), 
@@ -391,6 +669,100 @@ CREATE INDEX ix_cpd_participation_tenant_id_programme_id ON acad.cpd_participati
 
 CREATE INDEX ix_cpd_participation_tenant_id_staff_id ON acad.cpd_participation (tenant_id, staff_id);
 
+CREATE TABLE acad.curriculum_entry (
+	version_id BINARY(16) NOT NULL, 
+	year_code VARCHAR(8) NOT NULL, 
+	subject_id BINARY(16) NOT NULL, 
+	kind VARCHAR(8) NOT NULL, 
+	periods_per_week INTEGER, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_curriculum_entry PRIMARY KEY (id), 
+	CONSTRAINT uq_curriculum_entry_tenant_id_version_id_year_code_subject_id UNIQUE (tenant_id, version_id, year_code, subject_id), 
+	CONSTRAINT ck_curriculum_entry_kind CHECK (kind IN ('core','elective','optional')), 
+	CONSTRAINT ck_curriculum_entry_periods CHECK (periods_per_week IS NULL OR periods_per_week BETWEEN 0 AND 20), 
+	CONSTRAINT fk_curriculum_entry_version_id_curriculum_version FOREIGN KEY(version_id) REFERENCES acad.curriculum_version (id), 
+	CONSTRAINT fk_curriculum_entry_subject_id_subject FOREIGN KEY(subject_id) REFERENCES acad.subject (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE acad.enrolment (
+	learner_id BINARY(16) NOT NULL, 
+	institution_id BINARY(16) NOT NULL, 
+	session_id BINARY(16) NOT NULL, 
+	year_code VARCHAR(8) NOT NULL, 
+	status VARCHAR(16) NOT NULL, 
+	mode VARCHAR(10) NOT NULL, 
+	source VARCHAR(10) NOT NULL, 
+	admission_number VARCHAR(30), 
+	valid_from DATE NOT NULL, 
+	valid_to DATE, 
+	exit_reason VARCHAR(255), 
+	application_id BINARY(16), 
+	previous_id BINARY(16), 
+	age_override VARCHAR(255), 
+	active_key VARCHAR(36), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_enrolment PRIMARY KEY (id), 
+	CONSTRAINT uq_enrolment_tenant_id_active_key UNIQUE (tenant_id, active_key), 
+	CONSTRAINT ck_enrolment_status CHECK (status IN ('active','completed','transferred_out','withdrawn','graduated')), 
+	CONSTRAINT ck_enrolment_mode CHECK (mode IN ('full_time','part_time','distance')), 
+	CONSTRAINT ck_enrolment_source CHECK (source IN ('admission','direct','import','transfer','promotion')), 
+	CONSTRAINT ck_enrolment_dates CHECK (valid_to IS NULL OR valid_to >= valid_from), 
+	CONSTRAINT fk_enrolment_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id), 
+	CONSTRAINT fk_enrolment_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_enrolment_session_id_academic_period FOREIGN KEY(session_id) REFERENCES acad.academic_period (id), 
+	CONSTRAINT fk_enrolment_application_id_admission_application FOREIGN KEY(application_id) REFERENCES acad.admission_application (id), 
+	CONSTRAINT fk_enrolment_previous_id_enrolment FOREIGN KEY(previous_id) REFERENCES acad.enrolment (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_enrolment_tenant_id_institution_id_session_id_status ON acad.enrolment (tenant_id, institution_id, session_id, status);
+
+CREATE INDEX ix_enrolment_tenant_id_learner_id ON acad.enrolment (tenant_id, learner_id);
+
+CREATE TABLE acad.class_membership (
+	enrolment_id BINARY(16) NOT NULL, 
+	learner_id BINARY(16) NOT NULL, 
+	class_group_id BINARY(16) NOT NULL, 
+	valid_from DATE NOT NULL, 
+	valid_to DATE, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_class_membership PRIMARY KEY (id), 
+	CONSTRAINT ck_class_membership_dates CHECK (valid_to IS NULL OR valid_to >= valid_from), 
+	CONSTRAINT fk_class_membership_enrolment_id_enrolment FOREIGN KEY(enrolment_id) REFERENCES acad.enrolment (id), 
+	CONSTRAINT fk_class_membership_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id), 
+	CONSTRAINT fk_class_membership_class_group_id_class_group FOREIGN KEY(class_group_id) REFERENCES acad.class_group (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_class_membership_tenant_id_class_group_id ON acad.class_membership (tenant_id, class_group_id);
+
+CREATE INDEX ix_class_membership_tenant_id_enrolment_id ON acad.class_membership (tenant_id, enrolment_id);
+
 CREATE TABLE acad.development_action (
 	staff_id BINARY(16) NOT NULL, 
 	appraisal_id BINARY(16), 
@@ -420,3 +792,125 @@ CREATE TABLE acad.development_action (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX ix_development_action_tenant_id_staff_id ON acad.development_action (tenant_id, staff_id);
+
+CREATE TABLE acad.learner_transfer (
+	learner_id BINARY(16) NOT NULL, 
+	from_enrolment_id BINARY(16) NOT NULL, 
+	from_institution_id BINARY(16) NOT NULL, 
+	to_institution_id BINARY(16) NOT NULL, 
+	year_code VARCHAR(8) NOT NULL, 
+	effective_on DATE NOT NULL, 
+	reason VARCHAR(255) NOT NULL, 
+	status VARCHAR(10) NOT NULL, 
+	requested_by BINARY(16), 
+	decided_by BINARY(16), 
+	decided_at DATETIME(6), 
+	decision_note VARCHAR(255), 
+	new_enrolment_id BINARY(16), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_learner_transfer PRIMARY KEY (id), 
+	CONSTRAINT ck_learner_transfer_status CHECK (status IN ('requested','accepted','declined','cancelled')), 
+	CONSTRAINT fk_learner_transfer_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id), 
+	CONSTRAINT fk_learner_transfer_from_enrolment_id_enrolment FOREIGN KEY(from_enrolment_id) REFERENCES acad.enrolment (id), 
+	CONSTRAINT fk_learner_transfer_from_institution_id_institution FOREIGN KEY(from_institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_learner_transfer_to_institution_id_institution FOREIGN KEY(to_institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_learner_transfer_new_enrolment_id_enrolment FOREIGN KEY(new_enrolment_id) REFERENCES acad.enrolment (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_learner_transfer_tenant_id_learner_id ON acad.learner_transfer (tenant_id, learner_id);
+
+CREATE INDEX ix_learner_transfer_tenant_id_to_institution_id_status ON acad.learner_transfer (tenant_id, to_institution_id, status);
+
+CREATE TABLE acad.offering (
+	institution_id BINARY(16) NOT NULL, 
+	period_id BINARY(16) NOT NULL, 
+	subject_id BINARY(16) NOT NULL, 
+	class_group_id BINARY(16), 
+	class_key VARCHAR(36) NOT NULL, 
+	year_code VARCHAR(8) NOT NULL, 
+	kind VARCHAR(8) NOT NULL, 
+	periods_per_week INTEGER, 
+	units INTEGER, 
+	capacity INTEGER, 
+	active BOOL NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_offering PRIMARY KEY (id), 
+	CONSTRAINT uq_offering_tenant_id_period_id_subject_id_class_key UNIQUE (tenant_id, period_id, subject_id, class_key), 
+	CONSTRAINT ck_offering_kind CHECK (kind IN ('core','elective','optional')), 
+	CONSTRAINT ck_offering_periods CHECK (periods_per_week IS NULL OR periods_per_week BETWEEN 0 AND 20), 
+	CONSTRAINT fk_offering_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_offering_period_id_academic_period FOREIGN KEY(period_id) REFERENCES acad.academic_period (id), 
+	CONSTRAINT fk_offering_subject_id_subject FOREIGN KEY(subject_id) REFERENCES acad.subject (id), 
+	CONSTRAINT fk_offering_class_group_id_class_group FOREIGN KEY(class_group_id) REFERENCES acad.class_group (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_offering_tenant_id_class_group_id ON acad.offering (tenant_id, class_group_id);
+
+CREATE TABLE acad.subject_registration (
+	enrolment_id BINARY(16) NOT NULL, 
+	offering_id BINARY(16) NOT NULL, 
+	status VARCHAR(10) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_subject_registration PRIMARY KEY (id), 
+	CONSTRAINT uq_subject_registration_tenant_id_enrolment_id_offering_id UNIQUE (tenant_id, enrolment_id, offering_id), 
+	CONSTRAINT ck_subject_registration_status CHECK (status IN ('registered','dropped')), 
+	CONSTRAINT fk_subject_registration_enrolment_id_enrolment FOREIGN KEY(enrolment_id) REFERENCES acad.enrolment (id), 
+	CONSTRAINT fk_subject_registration_offering_id_offering FOREIGN KEY(offering_id) REFERENCES acad.offering (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_subject_registration_tenant_id_offering_id ON acad.subject_registration (tenant_id, offering_id);
+
+CREATE TABLE acad.teaching_assignment (
+	offering_id BINARY(16) NOT NULL, 
+	staff_id BINARY(16) NOT NULL, 
+	`role` VARCHAR(10) NOT NULL, 
+	valid_from DATE NOT NULL, 
+	valid_to DATE, 
+	note VARCHAR(255), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_teaching_assignment PRIMARY KEY (id), 
+	CONSTRAINT ck_teaching_assignment_role CHECK (role IN ('lead','assistant')), 
+	CONSTRAINT ck_teaching_assignment_dates CHECK (valid_to IS NULL OR valid_to >= valid_from), 
+	CONSTRAINT fk_teaching_assignment_offering_id_offering FOREIGN KEY(offering_id) REFERENCES acad.offering (id), 
+	CONSTRAINT fk_teaching_assignment_staff_id_staff FOREIGN KEY(staff_id) REFERENCES acad.staff (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_teaching_assignment_tenant_id_offering_id ON acad.teaching_assignment (tenant_id, offering_id);
+
+CREATE INDEX ix_teaching_assignment_tenant_id_staff_id ON acad.teaching_assignment (tenant_id, staff_id);

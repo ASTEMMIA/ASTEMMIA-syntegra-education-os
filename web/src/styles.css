@@ -234,3 +234,25 @@ details.panel > summary { cursor: pointer; list-style: revert; }
   h1 { font-size: 1.4rem; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* records sub-navigation */
+.subnav { background: var(--soft); border-bottom: 1px solid var(--line); }
+.subnav-inner { max-width: 1320px; margin: 0 auto; padding: 4px max(16px, env(safe-area-inset-left)); display: flex; gap: 2px; overflow-x: auto; }
+.subnav a { color: var(--ink); text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: .88rem; white-space: nowrap; }
+.subnav a.active { background: var(--panel); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+
+/* classes */
+.fill { display: inline-flex; align-items: center; gap: 8px; }
+.fill-bar { width: 90px; height: 8px; border-radius: 4px; background: var(--soft); overflow: hidden; display: inline-block; }
+.fill-bar > span { display: block; height: 100%; background: var(--accent); }
+.fill-bar > span.full { background: var(--warn); }
+.class-list { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.tile { text-decoration: none; color: inherit; }
+.tile:hover { border-color: var(--accent); }
+.tile-title { font-family: var(--f-head); font-size: 1.3rem; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button { background: none; border: 0; padding: 8px 14px; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; color: var(--muted); }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+form.row { border-top: 1px solid var(--line); padding-top: 12px; }
+.panel > form.row:first-child { border-top: 0; padding-top: 0; }

@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Route, Routes, useLocation } from "react-router";
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router";
 import { useSession } from "./session";
 import { Loading } from "./components/ui";
 import { SignIn, SsoCallback } from "./pages/SignIn";
@@ -9,6 +9,12 @@ import { FilePlanPage } from "./pages/FilePlan";
 import { CapturePage, BatchesPage, BatchPage } from "./pages/Capture";
 import { DispositionsPage } from "./pages/Dispositions";
 import { OversightPage } from "./pages/Oversight";
+import { ClassPage, ClassesPage, MyClassesPage } from "./pages/Classes";
+import { AdmissionsPage } from "./pages/Admissions";
+import { ImportPage, LearnerPage, LearnersPage } from "./pages/Learners";
+import { CalendarPage } from "./pages/Calendar";
+
+const RECORDS = ["/", "/documents", "/files", "/file-plan", "/capture", "/batches", "/dispositions", "/oversight"];
 
 interface NavItem {
   to: string;
@@ -19,7 +25,16 @@ interface NavItem {
 function Shell({ children }: { children: React.ReactNode }) {
   const s = useSession();
   const me = s.me!;
-  const nav: NavItem[] = [
+  const loc = useLocation();
+  const inRecords = RECORDS.some((p) => (p === "/" ? loc.pathname === "/" : loc.pathname.startsWith(p)));
+  const school: NavItem[] = [
+    { to: "/learners", label: "Learners", show: s.can("learner:register") || (s.can("learner:view") && s.cell("learner:view") !== "C") },
+    { to: "/admissions", label: "Admissions", show: s.can("learner:register", "admission:decide") },
+    { to: "/classes", label: "Classes", show: s.can("class:manage", "teaching:assign", "learner:register") },
+    { to: "/my-classes", label: "My classes", show: me.grants.some((g) => g.role === "TCH") },
+    { to: "/calendar", label: "Calendar", show: s.can("calendar:manage", "curriculum:publish", "class:manage") },
+  ];
+  const records: NavItem[] = [
     { to: "/", label: "Search", show: true },
     { to: "/files", label: "Files", show: s.can("file:manage", "records:admin", "records:oversight") },
     { to: "/file-plan", label: "File plan", show: s.can("file:manage", "records:admin", "records:oversight") },
@@ -36,15 +51,16 @@ function Shell({ children }: { children: React.ReactNode }) {
       </a>
       <header className="bar">
         <div className="bar-inner">
-          <span className="brand">
-            Records <span className="brand-sub">Syntegra Education</span>
-          </span>
-          <nav aria-label="Records">
-            {nav.filter((n) => n.show).map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.to === "/"}>
+          <span className="brand">Syntegra Education</span>
+          <nav aria-label="Main">
+            {school.filter((n) => n.show).map((n) => (
+              <NavLink key={n.to} to={n.to}>
                 {n.label}
               </NavLink>
             ))}
+            <Link to="/" className={inRecords ? "active" : ""} aria-current={inRecords ? "page" : undefined}>
+              Records
+            </Link>
           </nav>
           <div className="who">
             <label className="sr" htmlFor="scope">
@@ -64,6 +80,17 @@ function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
+      {inRecords && (
+        <nav className="subnav" aria-label="Records">
+          <div className="subnav-inner">
+            {records.filter((n) => n.show).map((n) => (
+              <NavLink key={n.to} to={n.to} end={n.to === "/"}>
+                {n.label}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      )}
       <InstitutionBar />
       <main id="main" className="main">
         {children}
@@ -118,6 +145,14 @@ export function App() {
         <Route path="/batches/:id" element={<BatchPage />} />
         <Route path="/dispositions" element={<DispositionsPage />} />
         <Route path="/oversight" element={<OversightPage />} />
+        <Route path="/learners" element={<LearnersPage />} />
+        <Route path="/learners/:id" element={<LearnerPage />} />
+        <Route path="/class-lists" element={<ImportPage />} />
+        <Route path="/admissions" element={<AdmissionsPage />} />
+        <Route path="/classes" element={<ClassesPage />} />
+        <Route path="/classes/:id" element={<ClassPage />} />
+        <Route path="/my-classes" element={<MyClassesPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>

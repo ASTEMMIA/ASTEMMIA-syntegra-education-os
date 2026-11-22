@@ -11,6 +11,7 @@ from pydantic import Field
 
 from syntegra.governance import api as governance
 from syntegra.institutions import api as inst
+from syntegra.institutions.domain import LEVEL_LABEL
 from syntegra.web.deps import MAX_LIMIT, UowDep, decode_cursor, encode_cursor, remember, replay
 from syntegra.web.schemas import Model
 
@@ -35,6 +36,9 @@ class SchoolBody(Model):
     longitude: float | None = None
 
 
+CODE_OF_LABEL = {label: level.value for level, label in LEVEL_LABEL.items()}
+
+
 def _view(v: inst.InstitutionView) -> dict[str, Any]:
     return {
         "id": str(v.id),
@@ -47,6 +51,7 @@ def _view(v: inst.InstitutionView) -> dict[str, Any]:
         "lga": v.location,
         "parent_scope_id": str(v.parent_scope_id),
         "levels": v.levels,
+        "level_codes": [CODE_OF_LABEL[x] for x in v.levels if x in CODE_OF_LABEL],
         "address": {
             "line1": v.address_line1,
             "line2": v.address_line2,

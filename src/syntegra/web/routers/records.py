@@ -12,17 +12,16 @@ import uuid
 from datetime import date
 from typing import Any, Literal
 
-import orjson
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from pydantic import Field, ValidationError
 
-from syntegra.core.errors import Forbidden
 from syntegra.core.errors import ValidationFailed as DomainValidation
 from syntegra.platform.blobstore import BlobStore
 from syntegra.records import api as rec
 from syntegra.records.domain import DOC_TYPES, PLAN_NAMES, model_plan
 from syntegra.web.deps import UowDep, remember, replay
+from syntegra.web.routers.common import dump, require_any
 from syntegra.web.schemas import Model
 
 router = APIRouter(prefix="/v1", tags=["records"])
@@ -42,30 +41,10 @@ def _max_bytes(request: Request) -> int:
 
 
 async def _any(uow: UowDep, *permissions: str) -> None:
-    """Allowed if the caller holds any one of the permissions at the active scope."""
-    for p in permissions:
-        try:
-            await uow.require(p)
-            return
-        except Forbidden:
-            continue
-    raise Forbidden(
-        f"you need one of {', '.join(permissions)} here",
-        next_action="Ask your administrator for a records role at this scope.",
-    )
+    await require_any(uow, *permissions)
 
 
-def _dump(obj: Any) -> Any:
-    """Dataclass views to JSON-ready dicts (uuids, dates as strings)."""
-    return orjson.loads(orjson.dumps(obj, default=_default))
-
-
-def _default(o: Any) -> Any:
-    if hasattr(o, "__dataclass_fields__"):
-        return {k: getattr(o, k) for k in o.__dataclass_fields__}
-    if isinstance(o, tuple):
-        return list(o)
-    raise TypeError
+_dump = dump
 
 
 async def _guarded(

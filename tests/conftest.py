@@ -9,10 +9,12 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+import syntegra.academic.models
 import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
+import syntegra.learners.models
 import syntegra.mdm.models
 import syntegra.records.models  # noqa: F401
 from syntegra.core.context import RequestContext, use_context
