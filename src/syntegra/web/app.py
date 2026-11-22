@@ -11,8 +11,10 @@ import syntegra.governance.models
 import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401
+from syntegra.platform.captcha import build_captcha
 from syntegra.platform.crypto import build_field_crypto
 from syntegra.platform.db import make_engine, make_sessionmaker
+from syntegra.platform.email import build_sender
 from syntegra.platform.settings import Settings, get_settings
 from syntegra.web import problems
 from syntegra.web.auth import build_keys, token_policy
@@ -60,6 +62,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.token_policy = token_policy(settings, keys)
     app.state.field_crypto = field_crypto
+    app.state.captcha = build_captcha(settings)  # refuses the dev stand-in outside dev/test
+    app.state.email_sender = build_sender(settings)
     problems.install(app)
     app.include_router(health.router)
     app.include_router(auth.router)

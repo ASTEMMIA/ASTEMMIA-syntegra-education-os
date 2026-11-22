@@ -50,8 +50,8 @@ universities are licensed federally (NUC), so tertiary is not offered for privat
 The public endpoints are unauthenticated by design.
 * **Disclosure:** they return only a reference or a status.
 * **Duplicates:** repeat submissions are refused.
-* **Before production:** they need WAF rate limiting and a human-verification challenge, and the
-  proprietor email should be verified before review. These are open items.
+* **CAPTCHA and email verification:** now in place ([ADR-015](ADR-015-registration-safeguards.md)).
+* **WAF rate limiting:** remains an infrastructure item.
 
 ## Schema
 Migration 0007:

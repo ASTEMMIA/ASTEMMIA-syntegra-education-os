@@ -11,9 +11,13 @@ the CEDA §22 "Institution registration" workflow and §2 private-institution te
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
+import secrets
 import uuid
 from dataclasses import dataclass, replace
+from datetime import timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -42,11 +46,16 @@ from syntegra.institutions.domain import (
     validate_row,
 )
 from syntegra.institutions.models import Institution, InstitutionLevel, RegistrationApplication
+from syntegra.platform.email import queue_email
 from syntegra.platform.outbox import publish
 from syntegra.platform.sequence import next_value
 from syntegra.workflow.domain import CATALOGUE, validate_transition
 
 WORKFLOW = CATALOGUE["institution_registration"]
+TOKEN_TTL = timedelta(hours=48)
+RESEND_GAP = timedelta(seconds=60)
+MAX_SENDS = 5
+UNVERIFIED_EXPIRY = timedelta(days=7)  # an unverified application stops blocking a new one
 SETTING = "private.registration"
 OPEN_STATES = ("submitted", "under_review", "site_inspection")
 CAC = re.compile(
@@ -88,6 +97,7 @@ class ApplicationView:
     decision_note: str | None
     institution_id: uuid.UUID | None
     allowed_next: list[str]
+    email_verified: bool
 
 
 def _proprietor(form: dict[str, str]) -> tuple[dict[str, str | None], list[str]]:
@@ -152,7 +162,41 @@ async def _validated(
     return result.clean
 
 
-async def submit_application(session: AsyncSession, form: dict[str, str]) -> str:
+def _hash(token: str) -> bytes:
+    return hashlib.sha256(token.encode()).digest()
+
+
+def _issue_code(session: AsyncSession, app: RegistrationApplication, public_base_url: str) -> None:
+    """New one-time code (previous ones stop working), emailed to the proprietor."""
+    token = secrets.token_urlsafe(24)
+    now = utcnow()
+    app.email_token_hash, app.email_token_expires_at = _hash(token), now + TOKEN_TTL
+    app.verification_sends += 1
+    app.last_verification_sent_at = now
+    link = (
+        f"{public_base_url.rstrip('/')}/private-schools/verify"
+        f"?reference={app.reference}&code={token}"
+    )
+    queue_email(
+        session,
+        tenant_id=app.tenant_id,
+        purpose="private-school-verification",
+        to=app.proprietor_email,
+        subject=f"Confirm your email for {app.details['name']} ({app.reference})",
+        body=(
+            f"Dear {app.proprietor_name},\n\n"
+            f"Thank you for applying to register {app.details['name']}.\n"
+            f"Your application reference is {app.reference}.\n\n"
+            f"Confirm your email address within 48 hours to send it for review:\n{link}\n\n"
+            f"If the link does not open, enter this code with your reference:\n{token}\n\n"
+            "If you did not apply, ignore this email.\n"
+        ),
+    )
+
+
+async def submit_application(
+    session: AsyncSession, form: dict[str, str], *, public_base_url: str
+) -> str:
     """Public: a proprietor's application. Returns the tracking reference."""
     ctx = current_context()
     levels, err = parse_levels(form.get("levels") or "")
@@ -177,6 +221,9 @@ async def submit_application(session: AsyncSession, form: dict[str, str]) -> str
                     RegistrationApplication.name_key == clean.name_key,
                     RegistrationApplication.location_key == fold(clean.location),
                     RegistrationApplication.status.in_(OPEN_STATES),
+                    # an application never verified stops blocking after UNVERIFIED_EXPIRY
+                    (RegistrationApplication.email_verified_at.is_not(None))
+                    | (RegistrationApplication.created_at > utcnow() - UNVERIFIED_EXPIRY),
                 )
             )
         ).first()
@@ -204,6 +251,7 @@ async def submit_application(session: AsyncSession, form: dict[str, str]) -> str
         )
         session.add(app)
         await session.flush()
+        _issue_code(session, app, public_base_url)
         publish(
             session,
             EventEnvelope(
@@ -235,12 +283,15 @@ async def application_status(session: AsyncSession, reference: str, email: str) 
             "no application matches this reference and email",
             next_action="Check both against your confirmation.",
         )
+    awaiting = app.email_verified_at is None and app.status == "submitted"
     out: dict[str, Any] = {
         "reference": app.reference,
-        "status": app.status,
+        "status": "awaiting_email_verification" if awaiting else app.status,
         "school_name": app.details["name"],
         "submitted_at": app.history[0]["at"],
     }
+    if awaiting:
+        out["next_action"] = "Open the link we emailed you to send your application for review."
     if app.status == "rejected":
         out["reason"] = app.decision_note
     if app.status == "approved":
@@ -279,6 +330,7 @@ async def _view(session: AsyncSession, app: RegistrationApplication) -> Applicat
         decision_note=app.decision_note,
         institution_id=app.institution_id,
         allowed_next=sorted(WORKFLOW.allowed(app.status)),
+        email_verified=app.email_verified_at is not None,
     )
 
 
@@ -300,9 +352,12 @@ async def get_application(session: AsyncSession, reference: str) -> ApplicationV
 
 
 async def list_applications(
-    session: AsyncSession, *, status: str | None, limit: int = 100
+    session: AsyncSession, *, status: str | None, include_unverified: bool = False, limit: int = 100
 ) -> list[ApplicationView]:
+    """The review queue. Applications whose email is not yet verified are hidden by default."""
     stmt = select(RegistrationApplication).order_by(RegistrationApplication.id).limit(limit)
+    if not include_unverified:
+        stmt = stmt.where(RegistrationApplication.email_verified_at.is_not(None))
     if status:
         stmt = stmt.where(RegistrationApplication.status == status)
     return [await _view(session, a) for a in (await session.execute(stmt)).scalars()]
@@ -318,6 +373,11 @@ async def advance(
     ctx = current_context()
     app = await _get(session, reference)
     validate_transition(WORKFLOW, app.status, to_state, actor=str(ctx.user_id), previous_actor=None)
+    if to_state == "under_review" and app.email_verified_at is None:
+        raise ValidationFailed(
+            "the proprietor has not verified their email yet",
+            next_action="Wait for verification, or reject the application if it looks false.",
+        )
     if to_state == "rejected" and not (note and note.strip()):
         raise ValidationFailed(
             "give the reason for rejecting", next_action="The proprietor will see this reason."
@@ -437,3 +497,72 @@ async def _approve(session: AsyncSession, app: RegistrationApplication) -> uuid.
             session, user_id=user.id, role_code="IADM", scope_node_id=school.root_scope_node_id
         )
     return inst.id
+
+
+async def _public_get(session: AsyncSession, reference: str) -> RegistrationApplication:
+    app = (
+        await session.execute(
+            select(RegistrationApplication).where(
+                RegistrationApplication.reference == reference.strip().upper()
+            )
+        )
+    ).scalar_one_or_none()
+    if app is None:
+        raise NotFound("no application matches this reference")
+    return app
+
+
+async def verify_email(session: AsyncSession, reference: str, code: str) -> dict[str, Any]:
+    """Public: confirm the proprietor's email with the emailed one-time code."""
+    app = await _public_get(session, reference)
+    if app.email_verified_at is not None:
+        return {"reference": app.reference, "email_verified": True}
+    valid = (
+        app.email_token_hash is not None
+        and app.email_token_expires_at is not None
+        and app.email_token_expires_at > utcnow()
+        and hmac.compare_digest(app.email_token_hash, _hash(code.strip()))
+    )
+    if not valid:
+        raise ValidationFailed(
+            "this code is not valid or has expired",
+            next_action="Ask for a new email from the application status page.",
+        )
+    app.email_verified_at = utcnow()
+    app.email_token_hash = app.email_token_expires_at = None
+    app.history = [
+        *app.history,
+        {"event": "email_verified", "at": utcnow().isoformat(), "by": "applicant"},
+    ]
+    await session.flush()
+    return {
+        "reference": app.reference,
+        "email_verified": True,
+        "next_action": "Your application is now with the regulator for review.",
+    }
+
+
+async def resend_verification(
+    session: AsyncSession, reference: str, email: str, *, public_base_url: str
+) -> None:
+    """Public: a new verification email (needs the reference and the proprietor's email)."""
+    app = await _public_get(session, reference)
+    if app.proprietor_email != email.strip().lower():
+        raise NotFound(
+            "no application matches this reference and email",
+            next_action="Check both against your confirmation.",
+        )
+    if app.email_verified_at is not None:
+        raise Conflict("this email is already verified")
+    if app.verification_sends >= MAX_SENDS:
+        raise Conflict(
+            "too many verification emails for this application",
+            next_action="Contact the regulator's office for help.",
+        )
+    if app.last_verification_sent_at and utcnow() - app.last_verification_sent_at < RESEND_GAP:
+        raise Conflict(
+            "a verification email was sent moments ago",
+            next_action="Check your inbox and spam folder, then try again in a minute.",
+        )
+    _issue_code(session, app, public_base_url)
+    await session.flush()

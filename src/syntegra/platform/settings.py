@@ -37,6 +37,19 @@ class Settings(BaseSettings):
     field_kek_b64: SecretStr | None = None
     field_previous_keks_b64: list[str] = []  # still able to decrypt during rotation
     blind_index_key_b64: SecretStr | None = None
+
+    # Public forms (ADR-015). Production needs a real CAPTCHA and email sender.
+    # "siteverify" works with Cloudflare Turnstile, hCaptcha and Google reCAPTCHA: all accept a
+    # POST of secret + response and return {"success": true|false}.
+    captcha_provider: Literal["dev", "siteverify"] = "dev"
+    captcha_verify_url: str | None = (
+        None  # e.g. https://challenges.cloudflare.com/turnstile/v0/siteverify
+    )
+    captcha_secret: SecretStr | None = None
+    captcha_site_key: str | None = None  # public; handed to the web form
+    email_sender: Literal["dev", "ses"] = "dev"
+    email_from: str = "no-reply@syntegra.education"
+    public_base_url: str = "http://localhost:8000"  # links in emails point here
     idempotency_ttl_hours: int = 24
 
     @property

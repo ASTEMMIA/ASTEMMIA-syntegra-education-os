@@ -164,6 +164,25 @@ async def import_schools(
     return 0
 
 
+async def send_email(once: bool) -> None:
+    """Deliver queued email (ADR-015). Dev: printed here and to the log."""
+    from syntegra.platform.email import build_sender, dispatch_once
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    sender = build_sender(settings)
+    while True:
+        n = await dispatch_once(sm, sender, from_address=settings.email_from)
+        print(f"sent {n}")
+        for m in getattr(sender, "sent", [])[-n:] if n else []:
+            print(f"--- to {m.to}: {m.subject}\n{m.body}")
+        if once:
+            break
+        await asyncio.sleep(1 if n else 5)
+    await engine.dispose()
+
+
 async def relay(once: bool) -> None:
     settings = get_settings()
     engine = make_engine(settings.database_url)
@@ -222,6 +241,8 @@ def main() -> None:
     imp.add_argument(
         "--commit", action="store_true", help="register the valid rows (default: preview only)"
     )
+    em = sub.add_parser("send-email", help="deliver queued email (dev: printed)")
+    em.add_argument("--once", action="store_true")
     r = sub.add_parser("relay")
     r.add_argument("--once", action="store_true")
     v = sub.add_parser("verify-audit")
@@ -251,6 +272,8 @@ def main() -> None:
                 import_schools(text, csv_file.name, args.tenant_code, args.board_code, args.commit)
             )
         )
+    elif args.cmd == "send-email":
+        asyncio.run(send_email(args.once))
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))
     elif args.cmd == "verify-audit":

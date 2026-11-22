@@ -180,3 +180,25 @@ class BulkJobRow(Base):
     )  # valid | error | created | skipped
     messages: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     result_id: Mapped[uuid.UUID | None]
+
+
+class OutboundEmail(Base):
+    """Email written in the same transaction as the change that needs it (like the outbox), then
+    delivered by the email dispatcher. The body is wiped once sent: it may hold a one-time code."""
+
+    __tablename__ = "outbound_email"
+    __table_args__ = (
+        Index(None, "sent_at", "id"),
+        {"schema": "ops"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    purpose: Mapped[str] = mapped_column(String(48), nullable=False)
+    to_address: Mapped[str] = mapped_column(String(254), nullable=False)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text_(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
+    sent_at: Mapped[datetime | None]
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[str | None] = mapped_column(String(500))

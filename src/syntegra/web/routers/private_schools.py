@@ -1,11 +1,12 @@
-"""Private provider registration (ADR-014).
+"""Private provider registration (ADR-014, ADR-015).
 
-* Public, no account: proprietors apply and check their application's status.
+* Public, no account: proprietors apply, confirm their email, and check status.
 * Regulator: a review queue that moves applications through the §22 workflow.
 
 The public endpoints accept no Idempotency-Key (no caller identity to scope it to); duplicate
-applications are refused by school name and LGA instead. They must sit behind WAF rate limits
-and a challenge in production (ADR-014).
+applications are refused by school name and LGA instead. Submitting and re-sending need a passed
+CAPTCHA, and review starts only once the proprietor's email is verified (ADR-015). WAF rate limits
+still sit in front in production.
 """
 
 from __future__ import annotations
@@ -17,8 +18,9 @@ from fastapi.responses import JSONResponse
 from pydantic import Field
 
 from syntegra.core.context import RequestContext, use_context
-from syntegra.core.errors import NotFound
+from syntegra.core.errors import NotFound, ValidationFailed
 from syntegra.governance import api as governance
+from syntegra.institutions import api as register
 from syntegra.institutions import registration
 from syntegra.web.deps import UowDep
 from syntegra.web.schemas import Model
@@ -46,6 +48,17 @@ class ApplicationForm(Model):
     proprietor_email: str = Field(min_length=5, max_length=254)
     proprietor_phone: str = Field(min_length=7, max_length=32)
     cac_number: str | None = Field(default=None, max_length=20, examples=["RC 1234567"])
+    # The human-check token from the CAPTCHA widget on the form (ADR-015)
+    captcha_token: str | None = Field(default=None, max_length=4096)
+
+
+class VerifyEmail(Model):
+    code: str = Field(min_length=10, max_length=128)
+
+
+class Resend(Model):
+    email: str = Field(min_length=5, max_length=254)
+    captcha_token: str | None = Field(default=None, max_length=4096)
 
 
 class Transition(Model):
@@ -67,11 +80,26 @@ async def _public_context(request: Request, session: Any, jurisdiction: str) -> 
     )
 
 
+async def _human(request: Request, token: str | None) -> None:
+    """The CAPTCHA must pass before any database work."""
+    ip = request.client.host if request.client else None
+    if not await request.app.state.captcha.verify(token, ip):
+        raise ValidationFailed(
+            "the human check (CAPTCHA) was not completed",
+            next_action="Complete the check on the form and submit again.",
+        )
+
+
+def _base_url(request: Request) -> str:
+    return str(request.app.state.settings.public_base_url)
+
+
 def _view(v: registration.ApplicationView) -> dict[str, Any]:
     return {
         "reference": v.reference,
         "status": v.status,
         "regulator": v.regulator_code,
+        "email_verified": v.email_verified,
         "school": {
             "name": v.school_name,
             "type": v.institution_type,
@@ -92,24 +120,77 @@ def _view(v: registration.ApplicationView) -> dict[str, Any]:
     }
 
 
+@public.get(
+    "/{jurisdiction}/private-school-applications/form", summary="What the application form needs"
+)
+async def form_config(jurisdiction: str, request: Request) -> dict[str, Any]:
+    settings = request.app.state.settings
+    async with request.app.state.sessionmaker() as session:
+        with use_context(await _public_context(request, session, jurisdiction)):
+            rules = await register.address_rules(session)
+    return {
+        "captcha_provider": settings.captcha_provider,
+        "captcha_site_key": settings.captcha_site_key,
+        "required_address_fields": sorted(rules.required),
+        "postcode": {"label": rules.postcode_label, "example": rules.postcode_example},
+    }
+
+
 @public.post(
     "/{jurisdiction}/private-school-applications",
     status_code=201,
     summary="Apply to register a private school (no account needed)",
 )
 async def apply(jurisdiction: str, body: ApplicationForm, request: Request) -> JSONResponse:
-    form = {k: "" if v is None else str(v) for k, v in body.model_dump().items()}
+    await _human(request, body.captcha_token)
+    form = {
+        k: "" if v is None else str(v)
+        for k, v in body.model_dump(exclude={"captcha_token"}).items()
+    }
     async with request.app.state.sessionmaker() as session, session.begin():
         with use_context(await _public_context(request, session, jurisdiction)):
-            reference = await registration.submit_application(session, form)
+            reference = await registration.submit_application(
+                session, form, public_base_url=_base_url(request)
+            )
     return JSONResponse(
         {
             "reference": reference,
-            "status": "submitted",
-            "next_action": "Keep this reference. Check progress with it and your email.",
+            "status": "awaiting_email_verification",
+            "next_action": "We have emailed you a link. Open it within 48 hours to send your "
+            "application for review. Keep your reference to check progress.",
         },
         status_code=201,
         headers={"Cache-Control": "no-store"},
+    )
+
+
+@public.post(
+    "/{jurisdiction}/private-school-applications/{reference}/verify-email",
+    summary="Confirm the proprietor's email with the emailed code",
+)
+async def verify_email(
+    jurisdiction: str, reference: str, body: VerifyEmail, request: Request
+) -> JSONResponse:
+    async with request.app.state.sessionmaker() as session, session.begin():
+        with use_context(await _public_context(request, session, jurisdiction)):
+            out = await registration.verify_email(session, reference, body.code)
+    return JSONResponse(out, headers={"Cache-Control": "no-store"})
+
+
+@public.post(
+    "/{jurisdiction}/private-school-applications/{reference}/resend-verification",
+    status_code=202,
+    summary="Send a new verification email",
+)
+async def resend(jurisdiction: str, reference: str, body: Resend, request: Request) -> JSONResponse:
+    await _human(request, body.captcha_token)
+    async with request.app.state.sessionmaker() as session, session.begin():
+        with use_context(await _public_context(request, session, jurisdiction)):
+            await registration.resend_verification(
+                session, reference, body.email, public_base_url=_base_url(request)
+            )
+    return JSONResponse(
+        {"sent": True, "next_action": "Check your inbox and spam folder."}, status_code=202
     )
 
 
@@ -129,18 +210,18 @@ async def status(
     return JSONResponse(out, headers={"Cache-Control": "no-store"})
 
 
-@router.get("", summary="Applications in your review queue")
+@router.get("", summary="Applications in your review queue (verified emails only, by default)")
 async def queue(
     uow: UowDep,
     status: Literal["submitted", "under_review", "site_inspection", "approved", "rejected"]
     | None = None,
+    include_unverified: bool = False,
 ) -> dict[str, Any]:
     await uow.require("institution:edit")
-    return {
-        "items": [
-            _view(v) for v in await registration.list_applications(uow.session, status=status)
-        ]
-    }
+    items = await registration.list_applications(
+        uow.session, status=status, include_unverified=include_unverified
+    )
+    return {"items": [_view(v) for v in items]}
 
 
 @router.get("/{reference}", summary="One application, with its history")

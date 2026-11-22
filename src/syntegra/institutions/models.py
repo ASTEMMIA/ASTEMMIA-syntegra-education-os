@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
-from syntegra.platform.db import Base, TenantScoped
+from syntegra.platform.db import Base, Hash32, TenantScoped
 
 
 class Institution(Base, TenantScoped):
@@ -119,5 +129,11 @@ class RegistrationApplication(Base, TenantScoped):
     proprietor_phone: Mapped[str] = mapped_column(String(20), nullable=False)
     cac_number: Mapped[str | None] = mapped_column(String(20))  # Corporate Affairs Commission
     history: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    # Email verification (ADR-015): the proprietor proves the address before review starts.
+    email_verified_at: Mapped[datetime | None]
+    email_token_hash: Mapped[bytes | None] = mapped_column(Hash32())  # SHA-256 of the one-time code
+    email_token_expires_at: Mapped[datetime | None]
+    verification_sends: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_verification_sent_at: Mapped[datetime | None]
     decision_note: Mapped[str | None] = mapped_column(String(1000))
     institution_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("org.institution.id"))

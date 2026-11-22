@@ -109,7 +109,7 @@ def test_production_refuses_dev_login_and_missing_keys():
         create_app(Settings(env="prod", dev_auth=False))
 
 
-def test_dev_login_route_absent_when_disabled():
+def test_dev_login_route_absent_when_disabled(monkeypatch):
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ec
 
@@ -131,6 +131,23 @@ def test_dev_login_route_absent_when_disabled():
     }
     with pytest.raises(RuntimeError, match="FIELD_KEK"):  # field encryption keys are mandatory too
         create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem))
-    app = create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys))
+    with pytest.raises(RuntimeError, match="CAPTCHA"):  # public forms need a real CAPTCHA (ADR-015)
+        create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys))
+    captcha = {
+        "captcha_provider": "siteverify",
+        "captcha_verify_url": "https://captcha.example/siteverify",
+        "captcha_secret": "s3cret",
+    }
+    with pytest.raises(RuntimeError, match="email sender"):  # and a real email sender
+        create_app(
+            Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha)
+        )
+    # The SES sender is an open item (ADR-015): stand in for it to look at the routes.
+    from syntegra.platform.email import DevEmailSender
+
+    monkeypatch.setattr("syntegra.web.app.build_sender", lambda settings: DevEmailSender())
+    app = create_app(
+        Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha)
+    )
     paths = set(app.openapi()["paths"])
     assert "/v1/auth/dev-login" not in paths and "/v1/auth/refresh" in paths

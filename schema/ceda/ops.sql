@@ -77,6 +77,22 @@ CREATE TABLE ops.idempotency_record (
 	CONSTRAINT uq_idempotency_record_tenant_id_user_id_idem_key UNIQUE (tenant_id, user_id, idem_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE ops.outbound_email (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	purpose VARCHAR(48) NOT NULL, 
+	to_address VARCHAR(254) NOT NULL, 
+	subject VARCHAR(255) NOT NULL, 
+	body TEXT NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	sent_at DATETIME(6), 
+	attempts INTEGER NOT NULL, 
+	last_error VARCHAR(500), 
+	CONSTRAINT pk_outbound_email PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_outbound_email_sent_at_id ON ops.outbound_email (sent_at, id);
+
 CREATE TABLE ops.outbox_event (
 	id BINARY(16) NOT NULL, 
 	tenant_id BINARY(16) NOT NULL, 

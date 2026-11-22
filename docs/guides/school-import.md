@@ -73,6 +73,9 @@ registers their own school
 1. **The proprietor applies** online with the school's details, using the same fields as above,
    including the full address and postcode, plus their own name, email, phone and CAC number. They
    receive a reference such as `PSR-2026-000123` and can check its status with it and their email.
-2. **ASUBEB reviews** the application, inspects the site, then approves or rejects it with a reason.
-3. **On approval**, the school appears in the state register as a private school under its LGEA, and the
+   The form includes a quick human check (CAPTCHA).
+2. **The proprietor confirms their email** by opening the link emailed to them within 48 hours. Until
+   they do, the application waits and is not reviewed. They can ask for a new link from the status page.
+3. **ASUBEB reviews** the application, inspects the site, then approves or rejects it with a reason.
+4. **On approval**, the school appears in the state register as a private school under its LGEA, and the
    proprietor signs in with their email to set it up.
