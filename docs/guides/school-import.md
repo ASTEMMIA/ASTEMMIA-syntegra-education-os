@@ -20,6 +20,8 @@ your active scope, when you upload. Load them from one spreadsheet saved as **CS
 | `postcode` | **yes** in Abia | 440001 | The 6-digit NIPOST postcode. "440 001" is accepted. A column headed "Postal Code" also works. |
 | `phone`, `email` | no | 0803 123 4567 | Phone numbers are stored in international form (+234…). |
 | `latitude`, `longitude` | no | 5.5320, 7.4860 | Both or neither. |
+| `ownership` | no | Private | Government (state or federal) or Private; blank means Government. Private schools are not listed: they apply online (below). The Ministry and Abia-SAME may list private institutions (ADR-021). |
+| `proprietor` | private only | Gregorian Foundation | The owner of a private institution |
 
 **Templates for the official lists.** Send these to the bodies that hold the lists:
 
@@ -34,8 +36,9 @@ phone columns kept as text, and a *Read me* sheet with an example row. Officials
 file, or save its data sheet as CSV UTF-8. Either way, nothing is registered until the check passes.
 The system also serves a bare CSV header (`GET /v1/bulk/institutions/template`).
 
-Imported rows are recorded as **government-owned**. Private schools register themselves (below). Private
-tertiary institutions are not imported this way yet.
+Each row's **ownership** is recorded: Government unless the `ownership` column says Private. Private
+schools still register themselves (below); private tertiary institutions and private adult centres are
+listed by the Ministry and Abia-SAME with their proprietor (ADR-021).
 
 ## Tertiary institutions
 

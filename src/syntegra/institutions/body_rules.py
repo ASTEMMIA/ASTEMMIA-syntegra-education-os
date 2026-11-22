@@ -84,6 +84,8 @@ class Examination(_Model):
 class Covers(_Model):
     levels: list[Level] = []
     types: list[InstitutionType] = []
+    # Empty: any ownership. ["public"]: government-owned only, e.g. TETFund, UBEC (ADR-021).
+    ownership: list[Literal["public", "private"]] = []
 
 
 class BodySpec(_Model):
@@ -149,6 +151,7 @@ def check_link(
     link_type: str,
     institution_type: str,
     institution_levels: set[str],
+    institution_ownership: str = "public",
     exam_code: str | None,
     reference: str | None,
     status: str,
@@ -172,6 +175,9 @@ def check_link(
     covered_levels = {lv.value for lv in body.covers.levels}
     if institution_type not in covered_types and not (institution_levels & covered_levels):
         errors.append(f"{body.code} does not cover this kind of institution")
+    if body.covers.ownership and institution_ownership not in body.covers.ownership:
+        which = "government-owned" if body.covers.ownership == ["public"] else "private"
+        errors.append(f"{body.code} covers {which} institutions only")
     if kind in NEEDS_REFERENCE and not (reference or "").strip():
         errors.append(f"a {LINK_LABEL[kind]} needs {body.code}'s number for the institution")
     if kind is LinkType.EXAM_CENTRE:

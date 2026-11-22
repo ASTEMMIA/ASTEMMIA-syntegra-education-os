@@ -89,12 +89,12 @@
     {
       "code": "UBEC", "name": "Universal Basic Education Commission", "scope": "national",
       "countries": ["NG"], "roles": ["funding"],
-      "covers": {"levels": ["eccde", "primary", "jss"], "types": ["school"]}
+      "covers": {"levels": ["eccde", "primary", "jss"], "types": ["school"], "ownership": ["public"]}
     },
     {
       "code": "TETFUND", "name": "Tertiary Education Trust Fund", "scope": "national",
       "countries": ["NG"], "roles": ["funding"],
-      "covers": {"levels": [], "types": ["university", "polytechnic", "college_of_education"]}
+      "covers": {"levels": [], "types": ["university", "polytechnic", "college_of_education"], "ownership": ["public"]}
     },
     {
       "code": "TRCN", "name": "Teachers Registration Council of Nigeria", "scope": "national",

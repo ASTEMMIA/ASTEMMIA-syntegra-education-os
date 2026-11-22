@@ -195,6 +195,8 @@ TEMPLATE_COLUMNS = (
     "email",
     "latitude",
     "longitude",
+    "ownership",  # ADR-021: blank means government-owned
+    "proprietor",
 )
 REQUIRED = ("name", "lga", "levels")
 # Header spellings found in real spreadsheets, mapped to template columns.
@@ -215,7 +217,46 @@ COLUMN_ALIASES = {
     "zip code": "postcode",
     "lga name": "lga",
     "local government area": "lga",
+    "owner": "ownership",
+    "ownership type": "ownership",
+    "proprietor name": "proprietor",
+    "proprietor/owner": "proprietor",
+    "owner name": "proprietor",
 }
+
+# Ownership (ADR-021). Government-owned covers state and federal; "private" is anything else
+# a proprietor owns. Words found in real lists are understood.
+_OWNERSHIP_ALIASES = {
+    "public": "public",
+    "government": "public",
+    "govt": "public",
+    "gov": "public",
+    "state": "public",
+    "stategovernment": "public",
+    "stateowned": "public",
+    "federal": "public",
+    "federalgovernment": "public",
+    "federalowned": "public",
+    "governmentowned": "public",
+    "private": "private",
+    "privatelyowned": "private",
+    "privateowned": "private",
+    "proprietary": "private",
+}
+OWNERSHIP_LABEL = {"public": "Government", "private": "Private"}
+
+
+def parse_ownership(value: str | None) -> tuple[str | None, str | None]:
+    """Blank means government-owned, so lists without the column keep their meaning."""
+    key = re.sub(r"[^a-z]", "", (value or "").casefold())
+    if not key:
+        return "public", None
+    found = _OWNERSHIP_ALIASES.get(key)
+    if found is None:
+        return None, f"ownership '{value}' is not recognised. Use Government or Private."
+    return found, None
+
+
 ADDRESS_FIELDS = ("address_line1", "address_line2", "town", "postcode")
 ADDRESS_LABEL = {
     "address_line1": "address line 1",
@@ -354,11 +395,15 @@ class CleanRow:
     email: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    ownership: str = "public"
+    proprietor_name: str | None = None
 
     def as_json(self) -> dict[str, object]:
         return {
             "name": self.name,
             "type": self.institution_type.value,
+            "ownership": self.ownership,
+            "proprietor": self.proprietor_name,
             "lga": self.location,
             "parent_scope_id": self.parent_scope_id,
             "levels": [lv.value for lv in self.levels],
@@ -425,9 +470,12 @@ def validate_row(
     default_region: str = "NG",
     allowed: frozenset[Level] | None = None,
     address: AddressRules | None = None,
+    self_registering: frozenset[Level] = frozenset(),
 ) -> RowResult:
     """``allowed`` restricts the levels the body registers (setting ``register.levels``);
-    ``address`` sets the postcode format and required address parts (setting ``address.rules``)."""
+    ``address`` sets the postcode format and required address parts (setting ``address.rules``);
+    ``self_registering`` are the levels whose PRIVATE institutions must apply online to this
+    body instead of being listed by it (setting ``private.registration``; ADR-014, ADR-021)."""
     rules = address or AddressRules()
     data = {k: (raw.get(k) or "").strip() for k in TEMPLATE_COLUMNS}
     errors: list[str] = []
@@ -500,6 +548,20 @@ def validate_row(
     code = _blank(data["government_code"])
     if code and not re.fullmatch(r"[A-Za-z0-9/\-. ]{2,40}", code):
         errors.append("government code has unexpected characters")
+    ownership, err = parse_ownership(data["ownership"])
+    if err:
+        errors.append(err)
+    proprietor = _blank(re.sub(r"\s+", " ", data["proprietor"]))
+    if proprietor and len(proprietor) > 200:
+        errors.append("proprietor must be at most 200 characters")
+    if proprietor and ownership == "public":
+        errors.append("proprietor is only for private institutions; set ownership to Private")
+    if ownership == "private" and levels and set(levels) & self_registering:
+        offered = ", ".join(LEVEL_LABEL[lv] for lv in levels if lv in self_registering)
+        errors.append(
+            f"private {offered} institutions apply online themselves (state directive); "
+            "leave them out of this list"
+        )
     clean = None
     if not errors and placed is not None and kind is not None:
         clean = CleanRow(
@@ -518,6 +580,8 @@ def validate_row(
             email=email.lower() if email else None,
             latitude=lat,
             longitude=lng,
+            ownership=ownership or "public",
+            proprietor_name=proprietor,
         )
     return RowResult(row_no, dict(raw), clean, errors)
 
@@ -569,9 +633,12 @@ def summarise(results: Iterable[RowResult]) -> dict[str, object]:
     by_lga: dict[str, int] = {}
     by_level: dict[str, int] = {}
     by_type: dict[str, int] = {}
+    by_ownership: dict[str, int] = {}
     for r in valid:
         assert r.clean is not None
         by_lga[r.clean.location] = by_lga.get(r.clean.location, 0) + 1
+        o = OWNERSHIP_LABEL[r.clean.ownership]
+        by_ownership[o] = by_ownership.get(o, 0) + 1
         t = TYPE_LABEL[r.clean.institution_type]
         by_type[t] = by_type.get(t, 0) + 1
         for lv in r.clean.levels:
@@ -582,5 +649,6 @@ def summarise(results: Iterable[RowResult]) -> dict[str, object]:
         "errors": len(rs) - len(valid),
         "by_lga": dict(sorted(by_lga.items())),
         "by_type": by_type,
+        "by_ownership": by_ownership,
         "by_level": by_level,
     }

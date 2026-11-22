@@ -303,6 +303,7 @@ async def _prepare(
         link_type=p.link_type,
         institution_type=inst.institution_type,
         institution_levels=await _levels(session, inst.id),
+        institution_ownership=inst.ownership,
         exam_code=p.exam_code,
         reference=p.reference,
         status=p.status,

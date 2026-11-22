@@ -69,6 +69,8 @@ class InstitutionView:
     postcode: str | None
     full_address: str
     status: str
+    ownership: str = "public"
+    proprietor_name: str | None = None
 
 
 def template_csv() -> str:
@@ -153,6 +155,18 @@ async def placement(session: AsyncSession) -> Placement:
     return Placement(str(ctx.scope_node_id), units, areas)
 
 
+async def self_registering_levels(session: AsyncSession) -> frozenset[Level]:
+    """Levels whose PRIVATE institutions apply online to the active body rather than being
+    listed by it (state directive; setting ``private.registration``, ADR-014, ADR-021)."""
+    ctx = current_context()
+    node = await governance.get_scope_node(session, ctx.scope_node_id)
+    root = await governance.tenant_root_scope(session, ctx.tenant_id)
+    for entry in await governance.resolve_config(session, root, "private.registration") or []:
+        if entry.get("body") == node.code:
+            return frozenset(Level(v) for v in entry.get("levels", []))
+    return frozenset()
+
+
 async def allowed_levels(session: AsyncSession) -> frozenset[Level]:
     """Levels the caller's body registers, from configuration (P4); default: basic education."""
     value = await governance.resolve_config(
@@ -199,7 +213,8 @@ async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | No
         location=c.location,
         location_key=fold(c.location),
         institution_type=c.institution_type.value,
-        ownership="public",
+        ownership=c.ownership,
+        proprietor_name=c.proprietor_name,
         managing_body=managing_body,
         address_line1=c.address_line1,
         address_line2=c.address_line2,
@@ -227,6 +242,7 @@ async def _create(session: AsyncSession, c: CleanRow, *, managing_body: str | No
             payload={
                 "institution_code": code,
                 "type": c.institution_type.value,
+                "ownership": c.ownership,
                 "levels": [lv.value for lv in c.levels],
             },
         ),
@@ -248,6 +264,7 @@ async def register_institution(
         await placement(session),
         allowed=await allowed_levels(session),
         address=await address_rules(session),
+        self_registering=await self_registering_levels(session),
     )
     codes, names = await _existing(session)
     mark_duplicates([result], existing_codes=codes, existing_names=names)
@@ -303,8 +320,9 @@ async def preview_import(
     allowed = await allowed_levels(session)
     # Row 1 is the header, so data rows are numbered from 2 as in the spreadsheet.
     rules = await address_rules(session)
+    private_online = await self_registering_levels(session)
     results = [
-        validate_row(i, raw, where, allowed=allowed, address=rules)
+        validate_row(i, raw, where, allowed=allowed, address=rules, self_registering=private_online)
         for i, raw in enumerate(rows, start=2)
     ]
     codes, names = await _existing(session)
@@ -374,7 +392,12 @@ async def commit_import(
     candidates = [r for r in rows if r.status == "valid"]
     rechecked = [
         validate_row(
-            r.row_no, _as_raw(r.data), where, allowed=allowed, address=await address_rules(session)
+            r.row_no,
+            _as_raw(r.data),
+            where,
+            allowed=allowed,
+            address=await address_rules(session),
+            self_registering=await self_registering_levels(session),
         )
         for r in candidates
     ]
@@ -448,6 +471,8 @@ async def _views(session: AsyncSession, items: list[Institution]) -> list[Instit
                 country=rules.country,
             ),
             i.status,
+            i.ownership,
+            i.proprietor_name,
         )
         for i in items
     ]
@@ -458,10 +483,13 @@ async def list_institutions(
     *,
     parent_scope_id: uuid.UUID | None = None,
     institution_type: str | None = None,
+    ownership: str | None = None,
     after: uuid.UUID | None = None,
     limit: int = 50,
 ) -> list[InstitutionView]:
     stmt = select(Institution).order_by(Institution.id).limit(limit)
+    if ownership is not None:
+        stmt = stmt.where(Institution.ownership == ownership)
     if parent_scope_id is not None:
         stmt = stmt.where(Institution.parent_scope_id == parent_scope_id)
     if institution_type is not None:

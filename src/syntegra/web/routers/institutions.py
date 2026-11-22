@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -20,6 +20,8 @@ router = APIRouter(prefix="/v1", tags=["institutions"])
 class SchoolBody(Model):
     name: str = Field(min_length=3, max_length=200)
     type: str | None = Field(default=None, max_length=48, examples=["Polytechnic"])
+    ownership: str | None = Field(default=None, max_length=24, examples=["Government", "Private"])
+    proprietor: str | None = Field(default=None, max_length=200)
     lga: str = Field(min_length=2, max_length=64)
     levels: str = Field(min_length=2, max_length=64, examples=["Primary", "JSS; SSS"])
     government_code: str | None = Field(default=None, max_length=40)
@@ -40,6 +42,8 @@ def _view(v: inst.InstitutionView) -> dict[str, Any]:
         "government_code": v.government_code,
         "name": v.name,
         "type": v.institution_type,
+        "ownership": v.ownership,
+        "proprietor": v.proprietor_name,
         "lga": v.location,
         "parent_scope_id": str(v.parent_scope_id),
         "levels": v.levels,
@@ -63,11 +67,14 @@ async def _board(uow: UowDep) -> str:
     return (await governance.get_scope_node(uow.session, uow.ctx.scope_node_id)).name[:64]
 
 
-@router.get("/institutions", summary="Institutions in your scope (filter by parent or type)")
+@router.get(
+    "/institutions", summary="Institutions in your scope (filter by parent, type or ownership)"
+)
 async def list_schools(
     uow: UowDep,
     parent_scope_id: uuid.UUID | None = None,
     type: str | None = None,
+    ownership: Literal["public", "private"] | None = None,
     cursor: str | None = None,
     limit: Annotated[int, Query(ge=1, le=MAX_LIMIT)] = 50,
 ) -> dict[str, Any]:
@@ -75,6 +82,7 @@ async def list_schools(
         uow.session,
         parent_scope_id=parent_scope_id,
         institution_type=type,
+        ownership=ownership,
         after=decode_cursor(cursor),
         limit=limit + 1,
     )
