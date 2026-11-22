@@ -5,7 +5,8 @@
   accepted step is stored, so a code that has been used once can never be used again.
 * **Recovery codes**: ten single-use codes shown once at enrolment. Only their SHA-256 is stored.
 
-SMS is deliberately absent: §8.3 does not accept it as a strong factor (SIM-swap).
+SMS is deliberately absent: it is not a strong factor (SIM-swap). §8.3 allows it only as a
+fallback for parents, never for privileged roles; that fallback is not built yet.
 """
 
 from __future__ import annotations

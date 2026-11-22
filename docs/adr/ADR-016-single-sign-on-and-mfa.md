@@ -4,7 +4,8 @@
 
 ## Context
 CEDA §8.3 requires "SSO through OIDC" and "MFA enforced by role and risk: passkeys/FIDO2, TOTP and
-recovery codes", and does not accept SMS as a strong factor. Until now only the development login
+recovery codes". It allows SMS one-time codes only as a fallback for parents, never for
+privileged roles. Until now only the development login
 existed (ADR-007), which is switched off outside dev/test. Staff in Abia State already have work
 accounts (Microsoft 365 or Google Workspace), and the state may adopt a government identity service.
 
@@ -59,7 +60,8 @@ creates the user. Single sign-on only proves who they are:
   codes. The user enrols again at their next sign-in.
 * **A trusted provider's own MFA:** with `trust_idp_mfa`, a provider that reports strong MFA in
   `amr` (for example Entra ID's `mfa`) is accepted without asking again. A provider reporting `sms`
-  or `tel` is never trusted for MFA (§8.3).
+  or `tel` is never trusted for MFA: SMS is not a strong factor, and §8.3 keeps it to a parent
+  fallback, which is not built yet.
 * **Users not required to use MFA** (`mfa_required` off; for example a kiosk account) get tokens
   straight after single sign-on.
 
