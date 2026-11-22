@@ -122,6 +122,13 @@ async def seed_structure(
                     scope_node_id=tenant.root_scope_node_id,
                 )
             created.append(f"user {admin_login} (STA)")
+        if structure.education_bodies:
+            from syntegra.institutions.bodies import seed_catalogue
+            from syntegra.institutions.body_rules import load_catalogue
+
+            for name in structure.education_bodies:
+                seeded = await seed_catalogue(session, load_catalogue(name))
+                created += [f"education body {c}" for c in seeded["created"]]
     await engine.dispose()
     return {
         "tenant": tenant.code,
@@ -203,6 +210,52 @@ async def email_test(to: str) -> None:
         )
     )
     print(f"sent through {settings.email_sender} from {settings.email_from}: {message_id or 'ok'}")
+
+
+async def seed_bodies(catalogues: list[str]) -> dict[str, list[str]]:
+    """Add or update external education bodies from catalogue files (ADR-019)."""
+    from syntegra.institutions.bodies import seed_catalogue
+    from syntegra.institutions.body_rules import load_catalogue
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    out: dict[str, list[str]] = {"created": [], "updated": []}
+    async with sm() as session, session.begin():
+        for name in catalogues:
+            seeded = await seed_catalogue(session, load_catalogue(name))
+            out["created"] += seeded["created"]
+            out["updated"] += seeded["updated"]
+    await engine.dispose()
+    return out
+
+
+async def import_body_links(text: str, tenant_code: str, board_code: str, commit: bool) -> int:
+    """Check (and with --commit, record) a CSV of institution links: exam centre numbers, JAMB
+    codes, accreditations (ADR-019), for the institutions under one body."""
+    from syntegra.institutions.bodies import import_links
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        state = await governance.tenant_by_code(session, tenant_code)
+        board = (
+            await governance.scope_node_by_code(session, state.id, board_code) if state else None
+        )
+        if state is None or board is None:
+            raise SystemExit(f"{board_code} not found in {tenant_code}: run seed-structure first")
+        with use_context(
+            RequestContext(state.id, board.id, None, system=True, purpose="body-link-import")
+        ):
+            summary, problems = await import_links(session, text, commit=commit)
+    await engine.dispose()
+    print(json.dumps(summary, indent=2))
+    for n, message in problems[:100]:
+        print(f"row {n}: {message}")
+    if not commit:
+        print("check only: nothing recorded. Run again with --commit to record the valid rows.")
+    return 0
 
 
 async def email_events(once: bool) -> None:
@@ -340,6 +393,15 @@ def main() -> None:
     em.add_argument("--once", action="store_true")
     et = sub.add_parser("email-test", help="send one test message through the configured sender")
     et.add_argument("--to", required=True)
+    sb = sub.add_parser("seed-bodies", help="add or update external education bodies")
+    sb.add_argument("catalogues", nargs="*", default=["ng", "international"])
+    il = sub.add_parser(
+        "import-body-links", help="exam centre numbers, JAMB codes, accreditations from a CSV"
+    )
+    il.add_argument("csv_path")
+    il.add_argument("--tenant-code", default="NG-AB")
+    il.add_argument("--board-code", default="ASUBEB")
+    il.add_argument("--commit", action="store_true")
     ev = sub.add_parser("email-events", help="apply SES bounce/complaint/delivery events")
     ev.add_argument("--once", action="store_true")
     us = sub.add_parser("email-unsuppress", help="allow a suppressed email address again")
@@ -384,6 +446,17 @@ def main() -> None:
         asyncio.run(send_email(args.once))
     elif args.cmd == "email-test":
         asyncio.run(email_test(args.to))
+    elif args.cmd == "seed-bodies":
+        print(json.dumps(asyncio.run(seed_bodies(args.catalogues)), indent=2))
+    elif args.cmd == "import-body-links":
+        from pathlib import Path
+
+        links_text = Path(args.csv_path).read_text(encoding="utf-8-sig")
+        raise SystemExit(
+            asyncio.run(
+                import_body_links(links_text, args.tenant_code, args.board_code, args.commit)
+            )
+        )
     elif args.cmd == "email-events":
         asyncio.run(email_events(args.once))
     elif args.cmd == "email-unsuppress":

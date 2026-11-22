@@ -106,6 +106,8 @@ class Structure(_Model):
     # Address parts every institution must have here: address_line1, address_line2, town, postcode.
     address_required: list[Literal["address_line1", "address_line2", "town", "postcode"]] = []
     bodies: list[Body] = Field(min_length=1)
+    # External body catalogues that apply here (ADR-019), e.g. ["ng", "international"].
+    education_bodies: list[str] = []
 
     @field_validator("areas")
     @classmethod

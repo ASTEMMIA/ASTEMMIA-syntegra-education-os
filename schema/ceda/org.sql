@@ -1,6 +1,23 @@
 -- Generated from the Python domain model by scripts/generate_ddl.py. Do not edit.
 CREATE DATABASE IF NOT EXISTS org;
 
+CREATE TABLE org.education_body (
+	id BINARY(16) NOT NULL, 
+	code VARCHAR(24) NOT NULL, 
+	name VARCHAR(200) NOT NULL, 
+	scope VARCHAR(16) NOT NULL, 
+	countries JSON NOT NULL, 
+	roles JSON NOT NULL, 
+	covers JSON NOT NULL, 
+	examinations JSON NOT NULL, 
+	note VARCHAR(500), 
+	catalogue VARCHAR(32) NOT NULL, 
+	active BOOL NOT NULL, 
+	CONSTRAINT pk_education_body PRIMARY KEY (id), 
+	CONSTRAINT ck_education_body_scope CHECK (scope IN ('international','regional','national','state')), 
+	CONSTRAINT uq_education_body_code UNIQUE (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE org.institution (
 	institution_code VARCHAR(20) NOT NULL, 
 	government_code VARCHAR(40), 
@@ -49,6 +66,36 @@ CREATE INDEX ix_institution_tenant_id_location_key ON org.institution (tenant_id
 CREATE INDEX ix_institution_tenant_id_parent_scope_id ON org.institution (tenant_id, parent_scope_id);
 
 CREATE INDEX ix_institution_tenant_id_postcode ON org.institution (tenant_id, postcode);
+
+CREATE TABLE org.institution_body_link (
+	institution_id BINARY(16) NOT NULL, 
+	body_id BINARY(16) NOT NULL, 
+	link_type VARCHAR(20) NOT NULL, 
+	exam_code VARCHAR(24), 
+	reference VARCHAR(40), 
+	status VARCHAR(12) NOT NULL, 
+	valid_from DATE, 
+	valid_to DATE, 
+	note VARCHAR(255), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_institution_body_link PRIMARY KEY (id), 
+	CONSTRAINT uq_institution_body_link_body_id_link_type_exam_code_reference UNIQUE (body_id, link_type, exam_code, reference), 
+	CONSTRAINT ck_institution_body_link_link_type CHECK (link_type IN ('exam_centre','admissions_code','accreditation','approval','beneficiary')), 
+	CONSTRAINT ck_institution_body_link_status CHECK (status IN ('active','provisional','suspended','withdrawn')), 
+	CONSTRAINT fk_institution_body_link_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_institution_body_link_body_id_education_body FOREIGN KEY(body_id) REFERENCES org.education_body (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_institution_body_link_tenant_id_institution_id ON org.institution_body_link (tenant_id, institution_id);
 
 CREATE TABLE org.institution_level (
 	institution_id BINARY(16) NOT NULL, 

@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "name": "international",
+  "description": "International examination boards that schools in many countries offer, often private schools. Data, not code.",
+  "bodies": [
+    {
+      "code": "CAMBRIDGE", "name": "Cambridge International Education", "scope": "international",
+      "countries": [], "roles": ["examination"],
+      "covers": {"levels": ["jss", "sss"], "types": ["school"]},
+      "examinations": [
+        {"code": "IGCSE", "name": "Cambridge IGCSE", "levels": ["jss", "sss"]},
+        {"code": "AS-A-LEVEL", "name": "Cambridge International AS and A Level", "levels": ["sss"]}
+      ]
+    },
+    {
+      "code": "PEARSON-EDEXCEL", "name": "Pearson Edexcel", "scope": "international",
+      "countries": [], "roles": ["examination"],
+      "covers": {"levels": ["jss", "sss"], "types": ["school"]},
+      "examinations": [
+        {"code": "INT-GCSE", "name": "Pearson Edexcel International GCSE", "levels": ["jss", "sss"]},
+        {"code": "IAL", "name": "Pearson Edexcel International Advanced Level", "levels": ["sss"]}
+      ]
+    },
+    {
+      "code": "IB", "name": "International Baccalaureate", "scope": "international",
+      "countries": [], "roles": ["examination"],
+      "covers": {"levels": ["eccde", "primary", "jss", "sss"], "types": ["school"]},
+      "examinations": [
+        {"code": "PYP", "name": "IB Primary Years Programme", "levels": ["eccde", "primary"]},
+        {"code": "MYP", "name": "IB Middle Years Programme", "levels": ["jss", "sss"]},
+        {"code": "DP", "name": "IB Diploma Programme", "levels": ["sss"]}
+      ]
+    },
+    {
+      "code": "COLLEGE-BOARD", "name": "College Board", "scope": "international",
+      "countries": [], "roles": ["examination"],
+      "covers": {"levels": ["sss"], "types": ["school"]},
+      "examinations": [
+        {"code": "SAT", "name": "SAT", "levels": ["sss"]}
+      ]
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -19,7 +19,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from syntegra.platform.db import Base, Hash32, TenantScoped
+from syntegra.core.ids import uuid7
+from syntegra.platform.db import Audited, Base, Hash32, TenantScoped
 
 
 class Institution(Base, TenantScoped):
@@ -137,3 +138,69 @@ class RegistrationApplication(Base, TenantScoped):
     last_verification_sent_at: Mapped[datetime | None]
     decision_note: Mapped[str | None] = mapped_column(String(1000))
     institution_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("org.institution.id"))
+
+
+class EducationBody(Base, Audited):
+    """An education body outside the state's own structure (ADR-019): an examination board,
+    admissions board, regulator, funder… Platform reference data from a catalogue file, shared by
+    every tenant; audited on the platform chain."""
+
+    __tablename__ = "education_body"
+    __audit_entity__ = "education_body"
+    __table_args__ = (
+        CheckConstraint("scope IN ('international','regional','national','state')", name="scope"),
+        {"schema": "org"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    code: Mapped[str] = mapped_column(String(24), nullable=False, unique=True)  # e.g. WAEC
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    scope: Mapped[str] = mapped_column(String(16), nullable=False)
+    countries: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    roles: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    covers: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
+    examinations: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    note: Mapped[str | None] = mapped_column(String(500))
+    catalogue: Mapped[str] = mapped_column(String(32), nullable=False)  # where it came from
+    active: Mapped[bool] = mapped_column(nullable=False, default=True)
+
+    def audit_tenant_id(self) -> uuid.UUID:
+        return uuid.UUID(int=0)  # platform chain, like built-in roles
+
+    def audit_scope_node_id(self) -> uuid.UUID | None:
+        return None
+
+
+class InstitutionBodyLink(Base, TenantScoped):
+    """An institution's standing with an external body (ADR-019): a WAEC or NECO centre number,
+    its JAMB code, NUC/NBTE/NCCE accreditation… Kept in the institution's tenant and scope, so
+    whoever may see the institution may see its links. Ending a link keeps it, as history."""
+
+    __tablename__ = "institution_body_link"
+    __audit_entity__ = "institution_body_link"
+    __table_args__ = (
+        # A body's number identifies one institution, e.g. one WAEC centre number per centre.
+        UniqueConstraint("body_id", "link_type", "exam_code", "reference"),
+        Index(None, "tenant_id", "institution_id"),
+        CheckConstraint(
+            "link_type IN ('exam_centre','admissions_code','accreditation','approval',"
+            "'beneficiary')",
+            name="link_type",
+        ),
+        CheckConstraint(
+            "status IN ('active','provisional','suspended','withdrawn')", name="status"
+        ),
+        {"schema": "org"},
+    )
+
+    institution_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("org.institution.id"), nullable=False
+    )
+    body_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("org.education_body.id"), nullable=False)
+    link_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    exam_code: Mapped[str | None] = mapped_column(String(24))
+    reference: Mapped[str | None] = mapped_column(String(40))  # the body's number for it
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="active")
+    valid_from: Mapped[date | None]
+    valid_to: Mapped[date | None]
+    note: Mapped[str | None] = mapped_column(String(255))

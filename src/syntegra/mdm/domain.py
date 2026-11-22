@@ -36,6 +36,8 @@ class IdentifierScheme(StrEnum):
     ULN = "ULN"  # UK Unique Learner Number
     WAEC = "WAEC"  # WAEC candidate number
     JAMB = "JAMB"  # JAMB registration number
+    NECO = "NECO"  # NECO candidate number (ADR-019)
+    NABTEB = "NABTEB"  # NABTEB candidate number (ADR-019)
     PASSPORT = "PASSPORT"
     BVN = "BVN"  # staff payroll
 
@@ -58,6 +60,9 @@ _SCHEME_PATTERN: dict[IdentifierScheme, re.Pattern[str]] = {
     IdentifierScheme.ULN: re.compile(r"^\d{10}$"),
     IdentifierScheme.WAEC: re.compile(r"^\d{10}[A-Z0-9]{0,4}$"),
     IdentifierScheme.JAMB: re.compile(r"^\d{8,10}[A-Z]{2}$"),
+    # Formats not pinned down yet: letters and digits only, until the bodies confirm them.
+    IdentifierScheme.NECO: re.compile(r"^[A-Z0-9]{6,20}$"),
+    IdentifierScheme.NABTEB: re.compile(r"^[A-Z0-9]{6,20}$"),
     IdentifierScheme.PASSPORT: re.compile(r"^[A-Z0-9]{6,12}$"),
 }
 

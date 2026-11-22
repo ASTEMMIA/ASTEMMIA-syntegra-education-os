@@ -23,3 +23,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [016](ADR-016-single-sign-on-and-mfa.md) | Single sign-on through OpenID Connect; MFA with authenticator apps and recovery codes | Accepted (passkeys open) |
 | [017](ADR-017-amazon-ses-email.md) | Email delivery through Amazon SES: failure handling, backoff, set-up | Accepted (bounce processing: ADR-018) |
 | [018](ADR-018-ses-bounce-and-complaint-processing.md) | SES bounces, complaints and deliveries: event queue, suppression list, delivery status on applications | Accepted |
+| [019](ADR-019-education-bodies.md) | Education bodies (WAEC, NECO, NABTEB, JAMB, NUC, NBTE, NCCE…) and institutions' exam centres, codes and accreditations | Accepted (result exchange open) |

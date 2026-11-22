@@ -77,6 +77,31 @@ python -m syntegra.cli import-institutions schools.csv --board-code ASUBEB --com
 python -m syntegra.cli import-institutions tertiary.csv --board-code MIN-TERTIARY-EDUCATION --commit
 ```
 
+## Exam centres, JAMB codes and accreditation
+
+Once institutions are registered, record their standing with external bodies
+([ADR-019](../adr/ADR-019-education-bodies.md)). This covers WAEC, NECO, NABTEB and NBAIS centre numbers,
+JAMB institution codes, NUC, NBTE and NCCE accreditation, and others. Load a body's list as a CSV:
+
+| Column | Required | Example | Notes |
+|---|---|---|---|
+| `institution` | yes | ASB/UN/001 | The government code, or the system ID (`INS-NG-…`) |
+| `body` | yes | WAEC | See `GET /v1/education-bodies` for the codes |
+| `link_type` | yes | exam_centre | `exam_centre`, `admissions_code`, `accreditation`, `approval`, `beneficiary` |
+| `exam` | for exam centres | WASSCE-SC | One of the body's examinations, e.g. NECO `SSCE-INT`, `BECE`, `NCEE` |
+| `reference` | for exam centres and admissions codes | 1234567 | The body's number for the institution |
+| `status` | no | active | `active` (default), `provisional`, `suspended`, `withdrawn` |
+| `valid_from`, `valid_to` | no | 2027-08-31 | Dates as YYYY-MM-DD, e.g. when an accreditation expires |
+| `note` | no | Interim accreditation | |
+
+```bash
+python -m syntegra.cli import-body-links waec-centres.csv --board-code ASUBEB            # check only
+python -m syntegra.cli import-body-links waec-centres.csv --board-code ASUBEB --commit
+```
+
+Each row is checked against what the body does. A primary school cannot be a WASSCE centre. NUC
+accredits universities only. One centre number belongs to one institution.
+
 ## Private schools
 
 Private schools are **not** imported by the state. Following the state directive, each proprietor
