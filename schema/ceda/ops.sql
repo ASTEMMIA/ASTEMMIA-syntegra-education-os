@@ -57,6 +57,18 @@ CREATE TABLE ops.bulk_job (
 
 CREATE INDEX ix_bulk_job_tenant_id_created_at ON ops.bulk_job (tenant_id, created_at);
 
+CREATE TABLE ops.email_suppression (
+	id BINARY(16) NOT NULL, 
+	address_hash BINARY(32) NOT NULL, 
+	reason VARCHAR(16) NOT NULL, 
+	events INTEGER NOT NULL, 
+	first_at DATETIME(6) NOT NULL, 
+	last_at DATETIME(6) NOT NULL, 
+	CONSTRAINT pk_email_suppression PRIMARY KEY (id), 
+	CONSTRAINT ck_email_suppression_reason CHECK (reason IN ('bounce','complaint')), 
+	CONSTRAINT uq_email_suppression_address_hash UNIQUE (address_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE ops.id_sequence (
 	tenant_id BINARY(16) NOT NULL, 
 	name VARCHAR(32) NOT NULL, 
@@ -90,8 +102,13 @@ CREATE TABLE ops.outbound_email (
 	last_error VARCHAR(500), 
 	next_attempt_at DATETIME(6), 
 	provider_message_id VARCHAR(128), 
-	CONSTRAINT pk_outbound_email PRIMARY KEY (id)
+	ref VARCHAR(64), 
+	delivery_status VARCHAR(16), 
+	CONSTRAINT pk_outbound_email PRIMARY KEY (id), 
+	CONSTRAINT uq_outbound_email_provider_message_id UNIQUE (provider_message_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_outbound_email_ref ON ops.outbound_email (ref);
 
 CREATE INDEX ix_outbound_email_sent_at_id ON ops.outbound_email (sent_at, id);
 
@@ -128,3 +145,20 @@ CREATE TABLE ops.bulk_job_row (
 	CONSTRAINT pk_bulk_job_row PRIMARY KEY (job_id, row_no), 
 	CONSTRAINT fk_bulk_job_row_job_id_bulk_job FOREIGN KEY(job_id) REFERENCES ops.bulk_job (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE ops.email_event (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	outbound_email_id BINARY(16) NOT NULL, 
+	event_key BINARY(32) NOT NULL, 
+	event_type VARCHAR(16) NOT NULL, 
+	subtype VARCHAR(64), 
+	detail VARCHAR(500), 
+	occurred_at DATETIME(6) NOT NULL, 
+	received_at DATETIME(6) NOT NULL, 
+	CONSTRAINT pk_email_event PRIMARY KEY (id), 
+	CONSTRAINT fk_email_event_outbound_email_id_outbound_email FOREIGN KEY(outbound_email_id) REFERENCES ops.outbound_email (id), 
+	CONSTRAINT uq_email_event_event_key UNIQUE (event_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_email_event_outbound_email_id ON ops.email_event (outbound_email_id);

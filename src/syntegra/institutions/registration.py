@@ -46,7 +46,9 @@ from syntegra.institutions.domain import (
     validate_row,
 )
 from syntegra.institutions.models import Institution, InstitutionLevel, RegistrationApplication
-from syntegra.platform.email import queue_email
+from syntegra.platform.email import is_suppressed, queue_email
+from syntegra.platform.email_feedback import UNDELIVERABLE
+from syntegra.platform.models import OutboundEmail
 from syntegra.platform.outbox import publish
 from syntegra.platform.sequence import next_value
 from syntegra.workflow.domain import CATALOGUE, validate_transition
@@ -98,6 +100,7 @@ class ApplicationView:
     institution_id: uuid.UUID | None
     allowed_next: list[str]
     email_verified: bool
+    email_delivery: str | None  # of the latest verification email (ADR-018)
 
 
 def _proprietor(form: dict[str, str]) -> tuple[dict[str, str | None], list[str]]:
@@ -162,6 +165,22 @@ async def _validated(
     return result.clean
 
 
+VERIFY_PURPOSE = "private-school-verification"
+NO_MAIL = "we cannot send email to the proprietor's address; use one that receives mail"
+
+
+async def _delivery(session: AsyncSession, reference: str) -> str | None:
+    """Delivery status of the latest verification email for an application."""
+    return (
+        await session.execute(
+            select(OutboundEmail.delivery_status)
+            .where(OutboundEmail.ref == reference, OutboundEmail.purpose == VERIFY_PURPOSE)
+            .order_by(OutboundEmail.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
 def _hash(token: str) -> bytes:
     return hashlib.sha256(token.encode()).digest()
 
@@ -180,7 +199,8 @@ def _issue_code(session: AsyncSession, app: RegistrationApplication, public_base
     queue_email(
         session,
         tenant_id=app.tenant_id,
-        purpose="private-school-verification",
+        purpose=VERIFY_PURPOSE,
+        ref=app.reference,
         to=app.proprietor_email,
         subject=f"Confirm your email for {app.details['name']} ({app.reference})",
         body=(
@@ -204,6 +224,9 @@ async def submit_application(
         raise ValidationFailed(err)
     regulator_code, regulator_scope, allowed = await _regulator_for(session, levels)
     proprietor, errors = _proprietor(form)
+    if proprietor["email"] and await is_suppressed(session, proprietor["email"]):
+        # Say what to do, not why: whether it bounced or someone complained is not public.
+        errors.append(NO_MAIL)
     with use_context(replace(ctx, scope_node_id=regulator_scope)):
         try:
             clean = await _validated(session, form, allowed)
@@ -215,9 +238,11 @@ async def submit_application(
                 "; ".join(errors), next_action="Correct the details and submit again."
             )
         assert clean is not None
-        pending = (
+        candidates = (
             await session.execute(
-                select(RegistrationApplication.id).where(
+                select(
+                    RegistrationApplication.reference, RegistrationApplication.email_verified_at
+                ).where(
                     RegistrationApplication.name_key == clean.name_key,
                     RegistrationApplication.location_key == fold(clean.location),
                     RegistrationApplication.status.in_(OPEN_STATES),
@@ -226,8 +251,14 @@ async def submit_application(
                     | (RegistrationApplication.created_at > utcnow() - UNVERIFIED_EXPIRY),
                 )
             )
-        ).first()
-        if pending is not None:
+        ).all()
+        # An unverified application whose email never arrived does not block a new one.
+        pending = [
+            ref
+            for ref, verified in candidates
+            if verified is not None or await _delivery(session, ref) not in UNDELIVERABLE
+        ]
+        if pending:
             raise Conflict(
                 f"'{clean.name}' in {clean.location} already has a registration application "
                 "in progress",
@@ -292,6 +323,12 @@ async def application_status(session: AsyncSession, reference: str, email: str) 
     }
     if awaiting:
         out["next_action"] = "Open the link we emailed you to send your application for review."
+        if await _delivery(session, app.reference) in UNDELIVERABLE:
+            out["email_delivery"] = "failed"
+            out["next_action"] = (
+                "Our email to you could not be delivered. Apply again with an email address "
+                "that receives mail."
+            )
     if app.status == "rejected":
         out["reason"] = app.decision_note
     if app.status == "approved":
@@ -331,6 +368,7 @@ async def _view(session: AsyncSession, app: RegistrationApplication) -> Applicat
         institution_id=app.institution_id,
         allowed_next=sorted(WORKFLOW.allowed(app.status)),
         email_verified=app.email_verified_at is not None,
+        email_delivery=await _delivery(session, app.reference),
     )
 
 
@@ -554,6 +592,11 @@ async def resend_verification(
         )
     if app.email_verified_at is not None:
         raise Conflict("this email is already verified")
+    if await is_suppressed(session, app.proprietor_email):
+        raise Conflict(
+            "we cannot send email to this address",
+            next_action="Apply again with an email address that receives mail.",
+        )
     if app.verification_sends >= MAX_SENDS:
         raise Conflict(
             "too many verification emails for this application",

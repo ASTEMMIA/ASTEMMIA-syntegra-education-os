@@ -74,7 +74,11 @@ verified `SYNTEGRA_EMAIL_FROM`; the task role needs only `ses:SendEmail`. Check 
 ```bash
 uv run python -m syntegra.cli email-test --to you@example.org
 uv run python -m syntegra.cli send-email                 # in dev the dev sender prints each message
+uv run python -m syntegra.cli email-events               # bounces, complaints, deliveries from SQS (ADR-018)
 ```
+
+A hard bounce or complaint stops further email to that address (only its hash is stored). Regulators see
+each application's email delivery status. `email-unsuppress --address …` lifts a suppression.
 
 Access tokens last 10 minutes. Exchange the refresh token at `POST /v1/auth/refresh`, and sign out with
 `POST /v1/auth/logout`. The dev login does not exist outside dev/test, and the server refuses to start

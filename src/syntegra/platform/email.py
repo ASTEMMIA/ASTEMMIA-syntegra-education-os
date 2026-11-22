@@ -16,6 +16,7 @@ Failures are classified so the dispatcher does the right thing:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import uuid
 from collections.abc import Sequence
@@ -27,7 +28,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from syntegra.core.clock import utcnow
-from syntegra.platform.models import OutboundEmail
+from syntegra.platform.models import EmailSuppression, OutboundEmail
 from syntegra.platform.session import PLATFORM_BYPASS
 from syntegra.platform.settings import Settings
 
@@ -173,11 +174,35 @@ def backoff(attempts: int) -> timedelta:
     return delay if delay < MAX_RETRY else MAX_RETRY
 
 
+def address_hash(address: str) -> bytes:
+    """How a suppressed address is stored and looked up (ADR-018): never the address itself."""
+    return hashlib.sha256(b"syntegra-email|" + address.strip().lower().encode()).digest()
+
+
+async def is_suppressed(session: AsyncSession, address: str) -> str | None:
+    """'bounce' or 'complaint' if we must not email this address, else None."""
+    reason = (
+        await session.execute(
+            select(EmailSuppression.reason)
+            .where(EmailSuppression.address_hash == address_hash(address))
+            .execution_options(**{PLATFORM_BYPASS: True})
+        )
+    ).scalar_one_or_none()
+    return reason
+
+
 def queue_email(
-    session: AsyncSession, *, tenant_id: uuid.UUID, purpose: str, to: str, subject: str, body: str
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    purpose: str,
+    to: str,
+    subject: str,
+    body: str,
+    ref: str | None = None,
 ) -> OutboundEmail:
     row = OutboundEmail(
-        tenant_id=tenant_id, purpose=purpose, to_address=to, subject=subject, body=body
+        tenant_id=tenant_id, purpose=purpose, to_address=to, subject=subject, body=body, ref=ref
     )
     session.add(row)
     return row
@@ -208,7 +233,30 @@ async def dispatch_once(
             stmt = stmt.with_for_update(skip_locked=True)
         rows: Sequence[OutboundEmail] = (await session.execute(stmt)).scalars().all()
         sent = 0
+        suppressed = (
+            {
+                h
+                for (h,) in (
+                    await session.execute(
+                        select(EmailSuppression.address_hash)
+                        .where(
+                            EmailSuppression.address_hash.in_(
+                                {address_hash(r.to_address) for r in rows}
+                            )
+                        )
+                        .execution_options(**{PLATFORM_BYPASS: True})
+                    )
+                ).all()
+            }
+            if rows
+            else set()
+        )
         for row in rows:
+            if address_hash(row.to_address) in suppressed:
+                # A hard bounce or complaint stopped this address: never send (ADR-018).
+                row.attempts, row.body = MAX_ATTEMPTS, GAVE_UP
+                row.delivery_status, row.last_error = "suppressed", "address is suppressed"
+                continue
             message = Message(row.to_address, row.subject, row.body, from_address, row.purpose)
             try:
                 message_id = await sender.send(message)
@@ -219,6 +267,7 @@ async def dispatch_once(
                 break
             except PermanentSendError as exc:
                 row.attempts = MAX_ATTEMPTS
+                row.delivery_status = "rejected"
                 row.last_error = str(exc)[:500]
                 row.body = GAVE_UP  # it may hold a one-time code
                 log.warning("email %s rejected: %s", row.id, exc)
@@ -234,6 +283,7 @@ async def dispatch_once(
             row.attempts += 1
             row.sent_at, row.body = utcnow(), SENT_BODY
             row.provider_message_id = message_id
+            row.delivery_status = "sent"
             row.last_error = None
             sent += 1
         return sent

@@ -205,6 +205,41 @@ async def email_test(to: str) -> None:
     print(f"sent through {settings.email_sender} from {settings.email_from}: {message_id or 'ok'}")
 
 
+async def email_events(once: bool) -> None:
+    """Apply SES bounce, complaint and delivery events from the SQS queue (ADR-018)."""
+    import boto3
+
+    from syntegra.platform.email_feedback import poll_once
+
+    settings = get_settings()
+    if not settings.ses_events_queue_url:
+        raise SystemExit("set SYNTEGRA_SES_EVENTS_QUEUE_URL to the SES events queue")
+    sqs = boto3.client("sqs", region_name=settings.ses_region or settings.residency_region)
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    while True:
+        handled, failed = await poll_once(
+            sm, sqs, settings.ses_events_queue_url, wait_seconds=1 if once else 20
+        )
+        if handled or failed or once:
+            print(f"applied {handled}, failed {failed}")
+        if once:
+            break
+    await engine.dispose()
+
+
+async def email_unsuppress(address: str) -> None:
+    from syntegra.platform.email_feedback import unsuppress
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        found = await unsuppress(session, address)
+    await engine.dispose()
+    print("address allowed again" if found else "address was not suppressed")
+
+
 async def relay(once: bool) -> None:
     settings = get_settings()
     engine = make_engine(settings.database_url)
@@ -305,6 +340,10 @@ def main() -> None:
     em.add_argument("--once", action="store_true")
     et = sub.add_parser("email-test", help="send one test message through the configured sender")
     et.add_argument("--to", required=True)
+    ev = sub.add_parser("email-events", help="apply SES bounce/complaint/delivery events")
+    ev.add_argument("--once", action="store_true")
+    us = sub.add_parser("email-unsuppress", help="allow a suppressed email address again")
+    us.add_argument("--address", required=True)
     r = sub.add_parser("relay")
     r.add_argument("--once", action="store_true")
     sso_p = sub.add_parser("configure-sso", help="set an organisation's identity providers")
@@ -345,6 +384,10 @@ def main() -> None:
         asyncio.run(send_email(args.once))
     elif args.cmd == "email-test":
         asyncio.run(email_test(args.to))
+    elif args.cmd == "email-events":
+        asyncio.run(email_events(args.once))
+    elif args.cmd == "email-unsuppress":
+        asyncio.run(email_unsuppress(args.address))
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))
     elif args.cmd == "configure-sso":

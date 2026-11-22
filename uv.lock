@@ -195,6 +195,9 @@ wheels = [
 sesv2 = [
     { name = "mypy-boto3-sesv2" },
 ]
+sqs = [
+    { name = "mypy-boto3-sqs" },
+]
 
 [[package]]
 name = "botocore"
@@ -990,6 +993,15 @@ wheels = [
 ]
 
 [[package]]
+name = "mypy-boto3-sqs"
+version = "1.44.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/ab/b4980ce6108fdc8f3a1ba5c870eddbcb250ba325aa06a42cc32a6aefeebf/mypy_boto3_sqs-1.44.0.tar.gz", hash = "sha256:8225fff746c9e69e5067d3aa9f1918b6ade07e5da9eac5f77f3f8f38fb5bb969", size = 23605, upload-time = "2026-11-10T21:58:34.485Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/82/79/6d97bfb301a231739068fe6fcf09f0d58205f43bda5792b45479a7e56a0f/mypy_boto3_sqs-1.44.0-py3-none-any.whl", hash = "sha256:a25966f8db3018b367fdb4f27a39b2abe674276f3272795959e50a15056e12f7", size = 33764, upload-time = "2026-11-10T21:58:32.247Z" },
+]
+
+[[package]]
 name = "mypy-extensions"
 version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1449,7 +1461,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "boto3-stubs", extra = ["sesv2"] },
+    { name = "boto3-stubs", extra = ["sesv2", "sqs"] },
     { name = "coverage" },
     { name = "httpx" },
     { name = "import-linter" },
@@ -1481,7 +1493,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "boto3-stubs", extras = ["sesv2"], specifier = ">=1.40" },
+    { name = "boto3-stubs", extras = ["sesv2", "sqs"], specifier = ">=1.40" },
     { name = "coverage", specifier = ">=7.5" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "import-linter", specifier = ">=2.0" },

@@ -100,6 +100,7 @@ def _view(v: registration.ApplicationView) -> dict[str, Any]:
         "status": v.status,
         "regulator": v.regulator_code,
         "email_verified": v.email_verified,
+        "email_delivery": v.email_delivery,
         "school": {
             "name": v.school_name,
             "type": v.institution_type,

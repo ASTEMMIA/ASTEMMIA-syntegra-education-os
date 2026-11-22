@@ -1,6 +1,6 @@
 # ADR-017: Email delivery through Amazon SES
 
-**Status:** Accepted 2026-11-22. Bounce and complaint processing is an open item.
+**Status:** Accepted 2026-11-22. Bounce and complaint processing: ADR-018.
 
 ## Context
 ADR-015 queues email in the same transaction as the change that needs it (`ops.outbound_email`), and a
@@ -55,6 +55,5 @@ is required outside dev/test.
   official API model with no network. They cover delivery, permanent rejection, throttling and backoff.
 * **The SES account-level suppression list** stops sending to addresses that bounced or complained.
 * **Open:**
-  * Process bounce and complaint events (configuration set → SNS or EventBridge) into the person's
-    contact record, so a bad proprietor email is visible to the regulator.
+  * ~~Process bounce and complaint events~~: done in ADR-018.
   * HTML email templates.
