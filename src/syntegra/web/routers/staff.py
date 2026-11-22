@@ -474,9 +474,16 @@ class AppraisalIn(Model):
     strengths: str | None = Field(default=None, max_length=1000)
     improvements: str | None = Field(default=None, max_length=1000)
     development_plan: str | None = Field(default=None, max_length=1000)
-    recommendation: Literal["none", "promotion", "commendation", "training", "improvement_plan"] = (
-        "none"
-    )
+    recommendation: Literal[
+        "none",
+        "promotion",
+        "commendation",
+        "training",
+        "improvement_plan",
+        "confirm_appointment",
+        "extend_probation",
+        "terminate_appointment",
+    ] = "none"
     appraiser_comment: str | None = Field(default=None, max_length=1000)
     submit: bool = False
 
@@ -549,6 +556,36 @@ def _appraisal(a: appr.AppraisalView) -> dict[str, Any]:
         "appraisee_comment": a.appraisee_comment,
         "countersigner_comment": a.countersigner_comment,
         "lesson_observations": [_obs(o) for o in a.observations],
+        "kind": a.kind,
+        "self_ratings": a.self_ratings,
+        "competency_score": str(a.competency_score) if a.competency_score is not None else None,
+        "objectives_score": str(a.objectives_score) if a.objectives_score is not None else None,
+        "objectives": [
+            {
+                "id": str(o.id),
+                "title": o.title,
+                "measure": o.measure,
+                "target": o.target,
+                "weight": o.weight,
+                "status": o.status,
+                "mid_year_progress": o.mid_year_progress,
+                "achievement": o.achievement,
+            }
+            for o in a.objectives
+        ],
+        "appeal": {
+            "status": a.appeal.status,
+            "grounds": a.appeal.grounds,
+            "decision_note": a.appeal.decision_note,
+            "revised_score": str(a.appeal.revised_score)
+            if a.appeal.revised_score is not None
+            else None,
+            "revised_band": a.appeal.revised_band,
+        }
+        if a.appeal
+        else None,
+        "final_score": str(a.final_score) if a.final_score is not None else None,
+        "final_band": a.final_band,
     }
 
 
@@ -607,14 +644,24 @@ async def cycle_progress(cycle_id: uuid.UUID, uow: UowDep) -> dict[str, Any]:
     summary="Start a staff member's appraisal (you become the appraiser)",
 )
 async def start_appraisal(
-    cycle_id: uuid.UUID, staff_id: uuid.UUID, request: Request, uow: UowDep
+    cycle_id: uuid.UUID,
+    staff_id: uuid.UUID,
+    request: Request,
+    uow: UowDep,
+    kind: Literal["annual", "probation"] = "annual",
 ) -> JSONResponse:
-    key, digest, replayed = await replay(uow, request, {"c": str(cycle_id), "s": str(staff_id)})
+    key, digest, replayed = await replay(
+        uow, request, {"c": str(cycle_id), "s": str(staff_id), "k": kind}
+    )
     if replayed:
         return replayed
     await uow.require("appraisal:conduct")
     return remember(
-        uow, key, digest, 201, _appraisal(await appr.start(uow.session, cycle_id, staff_id))
+        uow,
+        key,
+        digest,
+        201,
+        _appraisal(await appr.start(uow.session, cycle_id, staff_id, kind=kind)),
     )
 
 

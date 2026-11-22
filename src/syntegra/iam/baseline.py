@@ -102,6 +102,11 @@ PERMISSIONS: dict[str, PermissionDef] = {
             "appraisal:conduct", "Appraisal — appraise and observe lessons", T.CONFIDENTIAL
         ),
         PermissionDef("appraisal:countersign", "Appraisal — countersign or return", T.CONFIDENTIAL),
+        # Continuous professional development (hr, ADR-026)
+        PermissionDef("cpd:view", "CPD — view records and compliance", T.INTERNAL),
+        PermissionDef(
+            "cpd:manage", "CPD — programmes, nominations, verification, plans", T.INTERNAL
+        ),
     ]
 }
 
@@ -151,6 +156,8 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "staff:post": Cell.YES,
         "appraisal:view": Cell.YES,
         "appraisal:countersign": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
     },
     "HRO": {
         "appraisal:view": Cell.YES,
@@ -161,6 +168,8 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "person:view": Cell.YES,
         "person:create": Cell.YES,
         "person:edit": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
     },
     "IADM": {
         "scope_node:manage": Cell.YES,
@@ -172,6 +181,8 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "staff:edit": Cell.YES,
         "appraisal:view": Cell.YES,
         "appraisal:conduct": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
     },
     "HEAD": {
         "scope_node:manage": Cell.YES,
@@ -179,9 +190,11 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "staff:view": Cell.YES,
         "appraisal:view": Cell.YES,
         "appraisal:conduct": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
     },
     # Inspectors observe lessons (§29) and may appraise where the state assigns them.
-    "INSP": {"appraisal:view": Cell.YES, "appraisal:conduct": Cell.YES},
+    "INSP": {"appraisal:view": Cell.YES, "appraisal:conduct": Cell.YES, "cpd:view": Cell.YES},
     # Registrar is the Person 360 data steward (§4 "Registry officer", §16.1).
     "REG": {
         "person:view": Cell.YES,

@@ -24,6 +24,7 @@ from syntegra.web.auth import build_keys, token_policy
 from syntegra.web.routers import (
     addresses,
     auth,
+    development,
     education_bodies,
     governance,
     health,
@@ -91,6 +92,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(education_bodies.router)
     app.include_router(addresses.router)
     app.include_router(staff.router)
+    app.include_router(development.router)
     app.include_router(private_schools.public)
     app.include_router(private_schools.router)
     return app

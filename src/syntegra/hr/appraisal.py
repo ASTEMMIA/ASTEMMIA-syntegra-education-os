@@ -11,8 +11,8 @@ The appraiser is normally the head teacher; the countersigning officer is someon
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
-from datetime import date
+from dataclasses import dataclass, field
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -26,13 +26,24 @@ from syntegra.hr import events
 from syntegra.hr.api import _publish, _staff, get_staff, nominal_roll
 from syntegra.hr.appraisal_rules import (
     OBSERVATION_CRITERIA,
+    PROBATION_OUTCOMES,
     RATING_LABEL,
     Recommendation,
+    band,
+    blend,
     check_template,
     default_template,
+    objectives_score,
     score,
 )
-from syntegra.hr.models import Appraisal, AppraisalCycle, LessonObservation, Staff
+from syntegra.hr.models import (
+    Appraisal,
+    AppraisalAppeal,
+    AppraisalCycle,
+    LessonObservation,
+    PerformanceObjective,
+    Staff,
+)
 from syntegra.platform.session import PLATFORM_BYPASS
 
 EDITABLE = ("draft", "returned")
@@ -90,6 +101,50 @@ class AppraisalView:
     appraiser_id: uuid.UUID | None
     countersigner_id: uuid.UUID | None
     observations: list[ObservationView]
+    kind: str = "annual"
+    self_ratings: dict[str, Any] = field(default_factory=dict)
+    competency_score: Decimal | None = None
+    objectives_score: Decimal | None = None
+    objectives: list[ObjectiveView] = field(default_factory=list)
+    appeal: AppealView | None = None
+
+    @property
+    def final_score(self) -> Decimal | None:
+        """The score that stands: revised by an upheld appeal, otherwise as countersigned."""
+        if self.appeal and self.appeal.status == "upheld" and self.appeal.revised_score is not None:
+            return self.appeal.revised_score
+        return self.score
+
+    @property
+    def final_band(self) -> str | None:
+        if self.appeal and self.appeal.status == "upheld" and self.appeal.revised_band:
+            return self.appeal.revised_band
+        return self.band
+
+
+@dataclass(frozen=True, slots=True)
+class ObjectiveView:
+    id: uuid.UUID
+    title: str
+    measure: str
+    target: str
+    weight: int
+    status: str
+    mid_year_progress: int | None
+    mid_year_note: str | None
+    achievement: int | None
+    final_note: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class AppealView:
+    id: uuid.UUID
+    appraisal_id: uuid.UUID
+    grounds: str
+    status: str
+    decision_note: str | None
+    revised_score: Decimal | None
+    revised_band: str | None
 
 
 def _cycle_view(c: AppraisalCycle) -> CycleView:
@@ -279,6 +334,12 @@ async def _view(session: AsyncSession, a: Appraisal) -> AppraisalView:
         a.appraiser_id,
         a.countersigner_id,
         [_obs_view(o) for o in obs],
+        a.kind,
+        a.self_ratings or {},
+        a.competency_score,
+        a.objectives_score,
+        await _objectives(session, a.staff_id, a.cycle_id),
+        await _appeal_of(session, a.id),
     )
 
 
@@ -286,8 +347,13 @@ async def get_appraisal(session: AsyncSession, appraisal_id: uuid.UUID) -> Appra
     return await _view(session, await _appraisal(session, appraisal_id))
 
 
-async def start(session: AsyncSession, cycle_id: uuid.UUID, staff_id: uuid.UUID) -> AppraisalView:
-    """Begin a staff member's appraisal in a cycle; the caller becomes the appraiser."""
+async def start(
+    session: AsyncSession, cycle_id: uuid.UUID, staff_id: uuid.UUID, *, kind: str = "annual"
+) -> AppraisalView:
+    """Begin a staff member's appraisal in a cycle; the caller becomes the appraiser. A
+    ``probation`` review decides whether a new appointment is confirmed (ADR-026)."""
+    if kind not in ("annual", "probation"):
+        raise ValidationFailed("an appraisal is annual or probation")
     ctx = current_context()
     cycle = await _cycle(session, cycle_id)
     if cycle.status != "open":
@@ -296,23 +362,32 @@ async def start(session: AsyncSession, cycle_id: uuid.UUID, staff_id: uuid.UUID)
     if staff.status == "exited":
         raise Conflict("this staff member has left")
     await _not_self(session, staff, "conduct")
+    if kind == "probation" and staff.confirmation_date is not None:
+        raise Conflict("this appointment is already confirmed")
     existing = (
         await session.execute(
             select(Appraisal.id)
-            .where(Appraisal.cycle_id == cycle.id, Appraisal.staff_id == staff.id)
+            .where(
+                Appraisal.cycle_id == cycle.id,
+                Appraisal.staff_id == staff.id,
+                Appraisal.kind == kind,
+            )
             .execution_options(**{PLATFORM_BYPASS: True})
         )
     ).first()
     if existing:
-        raise Conflict("this staff member already has an appraisal in this cycle")
+        what = "an annual appraisal" if kind == "annual" else "a probation review"
+        raise Conflict(f"this staff member already has {what} in this cycle")
     a = Appraisal(
         tenant_id=staff.tenant_id,
         scope_node_id=staff.scope_node_id,
         cycle_id=cycle.id,
         staff_id=staff.id,
+        kind=kind,
         status="draft",
         appraiser_id=ctx.user_id,
         ratings={},
+        self_ratings={},
         recommendation=Recommendation.NONE.value,
     )
     session.add(a)
@@ -353,11 +428,32 @@ async def rate(
         rec = Recommendation(data.recommendation)
     except ValueError:
         raise ValidationFailed(f"'{data.recommendation}' is not a recommendation") from None
+    probation = a.kind == "probation"
+    if probation and rec not in PROBATION_OUTCOMES and rec is not Recommendation.NONE:
+        raise ValidationFailed("a probation review recommends confirm, extend or terminate")
+    if not probation and rec in PROBATION_OUTCOMES:
+        raise ValidationFailed("confirm, extend or terminate is for probation reviews")
     cycle = await _cycle(session, a.cycle_id)
-    pct, band, problems = score(cycle.criteria[staff.category], data.ratings)
+    competency, _band, problems = score(cycle.criteria[staff.category], data.ratings)
+    weight = int(cycle.criteria.get("objectives_weight", 0))
+    objectives = [
+        o for o in await _objectives(session, staff.id, cycle.id) if o.status != "dropped"
+    ]
+    obj_pct = objectives_score(
+        [(o.weight, o.achievement) for o in objectives if o.achievement is not None]
+    )
+    pct = blend(competency, obj_pct, weight) if not probation else competency
+    label = band(pct)
     if submit:
         if problems:
             raise ValidationFailed("; ".join(problems), next_action="Complete the ratings.")
+        if probation and rec is Recommendation.NONE:
+            raise ValidationFailed("a probation review must recommend confirm, extend or terminate")
+        if weight and not probation and any(o.achievement is None for o in objectives):
+            raise ValidationFailed(
+                "assess every agreed objective before submitting",
+                next_action="Record the achievement of each objective, or drop it with a reason.",
+            )
         if rec is Recommendation.PROMOTION and pct < 70:
             raise ValidationFailed("a promotion recommendation needs a Very good score or better")
         if rec is Recommendation.IMPROVEMENT_PLAN and not (data.development_plan or "").strip():
@@ -383,7 +479,11 @@ async def rate(
         _text(data.appraiser_comment),
     )
     a.recommendation = rec.value
-    a.score, a.band = (pct, band) if not problems else (None, None)
+    if problems:
+        a.score = a.band = a.competency_score = a.objectives_score = None
+    else:
+        a.score, a.band, a.competency_score = pct, label, competency
+        a.objectives_score = obj_pct if weight and not probation else None
     if submit:
         a.status, a.submitted_at = "submitted", utcnow()
         _publish(session, staff, events.APPRAISAL_SUBMITTED, {"appraisal_id": str(a.id)})
@@ -425,6 +525,9 @@ async def countersign(
     if approve:
         a.status, a.countersigned_at = "countersigned", utcnow()
         _publish(session, staff, events.APPRAISAL_COUNTERSIGNED, {"appraisal_id": str(a.id)})
+        if a.kind == "probation" and a.recommendation == Recommendation.CONFIRM_APPOINTMENT:
+            staff.confirmation_date = today()
+            _publish(session, staff, events.APPOINTMENT_CONFIRMED, {"appraisal_id": str(a.id)})
     else:
         a.status = "returned"
         _publish(session, staff, events.APPRAISAL_RETURNED, {"appraisal_id": str(a.id)})
@@ -545,3 +648,286 @@ async def observe_lesson(
     _publish(session, staff, events.LESSON_OBSERVED, {"observation_id": str(o.id)})
     await session.flush()
     return _obs_view(o)
+
+
+# --------------------------------------------------------------------------- objectives (PMS)
+
+
+def _objective_view(o: PerformanceObjective) -> ObjectiveView:
+    return ObjectiveView(
+        o.id,
+        o.title,
+        o.measure,
+        o.target,
+        o.weight,
+        o.status,
+        o.mid_year_progress,
+        o.mid_year_note,
+        o.achievement,
+        o.final_note,
+    )
+
+
+async def _objectives(
+    session: AsyncSession, staff_id: uuid.UUID, cycle_id: uuid.UUID
+) -> list[ObjectiveView]:
+    rows = (
+        await session.execute(
+            select(PerformanceObjective)
+            .where(
+                PerformanceObjective.staff_id == staff_id,
+                PerformanceObjective.cycle_id == cycle_id,
+            )
+            .order_by(PerformanceObjective.id)
+        )
+    ).scalars()
+    return [_objective_view(o) for o in rows]
+
+
+async def add_objective(
+    session: AsyncSession,
+    cycle_id: uuid.UUID,
+    staff_id: uuid.UUID,
+    *,
+    title: str,
+    measure: str,
+    target: str,
+    weight: int,
+) -> list[ObjectiveView]:
+    """Agree an objective with a staff member for the cycle. Weights total at most 100."""
+    ctx = current_context()
+    cycle = await _cycle(session, cycle_id)
+    if cycle.status != "open":
+        raise Conflict("this appraisal cycle is closed")
+    staff = await _staff(session, staff_id)
+    await _not_self(session, staff, "set objectives for")
+    errors = []
+    for label, value, limit in (
+        ("title", title, 200),
+        ("measure", measure, 300),
+        ("target", target, 200),
+    ):
+        if not value.strip():
+            errors.append(f"the objective's {label} is required")
+        elif len(value.strip()) > limit:
+            errors.append(f"the {label} is limited to {limit} characters")
+    if not 1 <= weight <= 100:
+        errors.append("weight must be 1 to 100")
+    current = [o for o in await _objectives(session, staff.id, cycle.id) if o.status != "dropped"]
+    if sum(o.weight for o in current) + weight > 100:
+        errors.append("objective weights for the cycle cannot add up to more than 100")
+    if errors:
+        raise ValidationFailed("; ".join(errors))
+    session.add(
+        PerformanceObjective(
+            tenant_id=staff.tenant_id,
+            scope_node_id=staff.scope_node_id,
+            staff_id=staff.id,
+            cycle_id=cycle.id,
+            title=title.strip(),
+            measure=measure.strip(),
+            target=target.strip(),
+            weight=weight,
+            status="agreed",
+            agreed_by=ctx.user_id,
+        )
+    )
+    await session.flush()
+    return await _objectives(session, staff.id, cycle.id)
+
+
+async def _objective(session: AsyncSession, objective_id: uuid.UUID) -> PerformanceObjective:
+    o = (
+        await session.execute(
+            select(PerformanceObjective).where(PerformanceObjective.id == objective_id)
+        )
+    ).scalar_one_or_none()
+    if o is None:
+        raise NotFound("objective not found in your scope")
+    staff = await _staff(session, o.staff_id)
+    await _not_self(session, staff, "review objectives for")
+    return o
+
+
+def _percent(v: int, label: str) -> int:
+    if not 0 <= v <= 100:
+        raise ValidationFailed(f"{label} is a percentage from 0 to 100")
+    return v
+
+
+async def review_objective(
+    session: AsyncSession, objective_id: uuid.UUID, *, progress: int, note: str | None = None
+) -> ObjectiveView:
+    """The mid-year review: how far along, and what is needed."""
+    o = await _objective(session, objective_id)
+    if o.status in ("assessed", "dropped"):
+        raise Conflict(f"this objective is already {o.status}")
+    o.mid_year_progress, o.mid_year_note = (
+        _percent(progress, "progress"),
+        (note or "").strip()[:500] or None,
+    )
+    o.status = "reviewed"
+    await session.flush()
+    return _objective_view(o)
+
+
+async def assess_objective(
+    session: AsyncSession, objective_id: uuid.UUID, *, achievement: int, note: str | None = None
+) -> ObjectiveView:
+    """The year-end assessment: how much of the target was achieved."""
+    o = await _objective(session, objective_id)
+    if o.status == "dropped":
+        raise Conflict("this objective was dropped")
+    o.achievement, o.final_note = (
+        _percent(achievement, "achievement"),
+        (note or "").strip()[:500] or None,
+    )
+    o.status = "assessed"
+    await session.flush()
+    return _objective_view(o)
+
+
+async def drop_objective(
+    session: AsyncSession, objective_id: uuid.UUID, *, reason: str
+) -> ObjectiveView:
+    """An objective that no longer applies (e.g. the class was reassigned), with the reason."""
+    o = await _objective(session, objective_id)
+    if not reason.strip():
+        raise ValidationFailed("say why the objective is dropped")
+    o.status, o.final_note = "dropped", reason.strip()[:500]
+    await session.flush()
+    return _objective_view(o)
+
+
+# --------------------------------------------------------------------------- self-assessment
+
+
+async def self_assess(
+    session: AsyncSession, appraisal_id: uuid.UUID, ratings: dict[str, dict[str, Any]]
+) -> AppraisalView:
+    """The staff member rates themselves on the same criteria, before the appraiser submits."""
+    a = await _appraisal(session, appraisal_id)
+    staff = await _staff(session, a.staff_id)
+    mine = await _person_of_user(session, current_context().user_id)
+    if mine != staff.person_id:
+        raise Conflict("only the person appraised can assess themselves")
+    if a.status not in EDITABLE:
+        raise Conflict("self-assessment closes when the appraisal is submitted")
+    cycle = await _cycle(session, a.cycle_id)
+    _pct, _band, problems = score(cycle.criteria[staff.category], ratings)
+    problems = [p for p in problems if not p.startswith("say why")]  # reasons are optional here
+    if problems:
+        raise ValidationFailed("; ".join(problems))
+    a.self_ratings = {
+        k: {"rating": v.get("rating"), "comment": _text(v.get("comment"))}
+        for k, v in ratings.items()
+    }
+    a.self_assessed_at = utcnow()
+    _publish(session, staff, events.APPRAISAL_SELF_ASSESSED, {"appraisal_id": str(a.id)})
+    await session.flush()
+    return await _view(session, a)
+
+
+# --------------------------------------------------------------------------- appeals
+
+APPEAL_DAYS_SETTING = "hr.appraisal.appeal_days"
+DEFAULT_APPEAL_DAYS = 30
+
+
+def _appeal_view(x: AppraisalAppeal) -> AppealView:
+    return AppealView(
+        x.id,
+        x.appraisal_id,
+        x.grounds,
+        x.status,
+        x.decision_note,
+        x.revised_score,
+        x.revised_band,
+    )
+
+
+async def _appeal_of(session: AsyncSession, appraisal_id: uuid.UUID) -> AppealView | None:
+    x = (
+        await session.execute(
+            select(AppraisalAppeal).where(AppraisalAppeal.appraisal_id == appraisal_id)
+        )
+    ).scalar_one_or_none()
+    return _appeal_view(x) if x else None
+
+
+async def lodge_appeal(
+    session: AsyncSession, appraisal_id: uuid.UUID, grounds: str
+) -> AppraisalView:
+    """The appraisee appeals a countersigned appraisal, within the appeal period."""
+    from syntegra.governance import api as governance
+
+    ctx = current_context()
+    a = await _appraisal(session, appraisal_id)
+    staff = await _staff(session, a.staff_id)
+    if await _person_of_user(session, ctx.user_id) != staff.person_id:
+        raise Conflict("only the person appraised can appeal")
+    if a.status != "countersigned" or a.countersigned_at is None:
+        raise Conflict("only a countersigned appraisal can be appealed")
+    days = await governance.resolve_config(session, ctx.scope_node_id, APPEAL_DAYS_SETTING)
+    limit = int(days) if isinstance(days, int) else DEFAULT_APPEAL_DAYS
+    if today() > a.countersigned_at.date() + timedelta(days=limit):
+        raise Conflict(f"the {limit}-day appeal period has passed")
+    if not grounds.strip():
+        raise ValidationFailed("state the grounds of the appeal")
+    if await _appeal_of(session, a.id) is not None:
+        raise Conflict("this appraisal has already been appealed")
+    session.add(
+        AppraisalAppeal(
+            tenant_id=a.tenant_id,
+            scope_node_id=a.scope_node_id,
+            appraisal_id=a.id,
+            grounds=grounds.strip()[:2000],
+            status="lodged",
+            lodged_by=ctx.user_id,
+        )
+    )
+    await session.flush()
+    _publish(session, staff, events.APPEAL_LODGED, {"appraisal_id": str(a.id)})
+    await session.flush()
+    return await _view(session, a)
+
+
+async def decide_appeal(
+    session: AsyncSession,
+    appraisal_id: uuid.UUID,
+    *,
+    uphold: bool,
+    note: str,
+    revised_ratings: dict[str, dict[str, Any]] | None = None,
+) -> AppraisalView:
+    """Decided by an officer who was neither the appraiser nor the countersigning officer. An
+    upheld appeal may revise the ratings; the score is recalculated the same way."""
+    ctx = current_context()
+    a = await _appraisal(session, appraisal_id)
+    x = (
+        await session.execute(
+            select(AppraisalAppeal).where(AppraisalAppeal.appraisal_id == a.id).with_for_update()
+        )
+    ).scalar_one_or_none()
+    if x is None or x.status != "lodged":
+        raise Conflict("there is no appeal waiting for a decision")
+    if ctx.user_id in (a.appraiser_id, a.countersigner_id):
+        raise Conflict("the appeal must be decided by someone not involved in the appraisal")
+    staff = await _staff(session, a.staff_id)
+    await _not_self(session, staff, "decide an appeal on")
+    if not note.strip():
+        raise ValidationFailed("give the reasons for the decision")
+    if uphold and revised_ratings:
+        cycle = await _cycle(session, a.cycle_id)
+        merged = a.ratings | revised_ratings
+        competency, _b, problems = score(cycle.criteria[staff.category], merged)
+        if problems:
+            raise ValidationFailed("; ".join(problems))
+        weight = 0 if a.kind == "probation" else int(cycle.criteria.get("objectives_weight", 0))
+        pct = blend(competency, a.objectives_score, weight)
+        x.revised_ratings, x.revised_score, x.revised_band = merged, pct, band(pct)
+    x.status = "upheld" if uphold else "dismissed"
+    x.decided_by, x.decided_at, x.decision_note = ctx.user_id, utcnow(), note.strip()[:1000]
+    _publish(session, staff, events.APPEAL_DECIDED, {"appraisal_id": str(a.id), "status": x.status})
+    await session.flush()
+    return await _view(session, a)

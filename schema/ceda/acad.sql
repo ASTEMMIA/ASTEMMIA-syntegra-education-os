@@ -23,6 +23,41 @@ CREATE TABLE acad.appraisal_cycle (
 	CONSTRAINT ck_appraisal_cycle_period CHECK (period_end >= period_start)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE acad.cpd_programme (
+	code VARCHAR(30) NOT NULL, 
+	title VARCHAR(200) NOT NULL, 
+	provider VARCHAR(200) NOT NULL, 
+	provider_accredited BOOL NOT NULL, 
+	category VARCHAR(24) NOT NULL, 
+	mode VARCHAR(14) NOT NULL, 
+	audience VARCHAR(200), 
+	description VARCHAR(2000), 
+	start_date DATE NOT NULL, 
+	end_date DATE NOT NULL, 
+	venue VARCHAR(200), 
+	hours NUMERIC(6, 1) NOT NULL, 
+	credit_points INTEGER NOT NULL, 
+	capacity INTEGER, 
+	status VARCHAR(10) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_cpd_programme PRIMARY KEY (id), 
+	CONSTRAINT uq_cpd_programme_tenant_id_code UNIQUE (tenant_id, code), 
+	CONSTRAINT ck_cpd_programme_category CHECK (category IN ('subject_knowledge','pedagogy','ict','leadership','assessment','inclusive_education','safeguarding','early_years','literacy_numeracy','wellbeing','other')), 
+	CONSTRAINT ck_cpd_programme_mode CHECK (mode IN ('in_person','online','blended','school_based')), 
+	CONSTRAINT ck_cpd_programme_status CHECK (status IN ('planned','open','closed','completed','cancelled')), 
+	CONSTRAINT ck_cpd_programme_dates CHECK (end_date >= start_date), 
+	CONSTRAINT ck_cpd_programme_points CHECK (credit_points >= 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE acad.staff (
 	person_id BINARY(16) NOT NULL, 
 	staff_number VARCHAR(20) NOT NULL, 
@@ -58,6 +93,7 @@ CREATE INDEX ix_staff_tenant_id_status ON acad.staff (tenant_id, status);
 CREATE TABLE acad.appraisal (
 	cycle_id BINARY(16) NOT NULL, 
 	staff_id BINARY(16) NOT NULL, 
+	kind VARCHAR(10) NOT NULL, 
 	status VARCHAR(14) NOT NULL, 
 	appraiser_id BINARY(16), 
 	countersigner_id BINARY(16), 
@@ -67,7 +103,11 @@ CREATE TABLE acad.appraisal (
 	strengths VARCHAR(1000), 
 	improvements VARCHAR(1000), 
 	development_plan VARCHAR(1000), 
-	recommendation VARCHAR(20) NOT NULL, 
+	recommendation VARCHAR(24) NOT NULL, 
+	self_ratings JSON NOT NULL, 
+	self_assessed_at DATETIME(6), 
+	competency_score NUMERIC(5, 2), 
+	objectives_score NUMERIC(5, 2), 
 	appraiser_comment VARCHAR(1000), 
 	appraisee_comment VARCHAR(1000), 
 	countersigner_comment VARCHAR(1000), 
@@ -84,9 +124,10 @@ CREATE TABLE acad.appraisal (
 	source_ref VARCHAR(128), 
 	id BINARY(16) NOT NULL, 
 	CONSTRAINT pk_appraisal PRIMARY KEY (id), 
-	CONSTRAINT uq_appraisal_tenant_id_cycle_id_staff_id UNIQUE (tenant_id, cycle_id, staff_id), 
+	CONSTRAINT uq_appraisal_tenant_id_cycle_id_staff_id_kind UNIQUE (tenant_id, cycle_id, staff_id, kind), 
 	CONSTRAINT ck_appraisal_status CHECK (status IN ('draft','submitted','returned','countersigned')), 
-	CONSTRAINT ck_appraisal_recommendation CHECK (recommendation IN ('none','promotion','commendation','training','improvement_plan')), 
+	CONSTRAINT ck_appraisal_kind CHECK (kind IN ('annual','probation')), 
+	CONSTRAINT ck_appraisal_recommendation CHECK (recommendation IN ('none','promotion','commendation','training','improvement_plan','confirm_appointment','extend_probation','terminate_appointment')), 
 	CONSTRAINT fk_appraisal_cycle_id_appraisal_cycle FOREIGN KEY(cycle_id) REFERENCES acad.appraisal_cycle (id), 
 	CONSTRAINT fk_appraisal_staff_id_staff FOREIGN KEY(staff_id) REFERENCES acad.staff (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -119,6 +160,40 @@ CREATE TABLE acad.lesson_observation (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX ix_lesson_observation_tenant_id_staff_id ON acad.lesson_observation (tenant_id, staff_id);
+
+CREATE TABLE acad.performance_objective (
+	staff_id BINARY(16) NOT NULL, 
+	cycle_id BINARY(16) NOT NULL, 
+	title VARCHAR(200) NOT NULL, 
+	measure VARCHAR(300) NOT NULL, 
+	target VARCHAR(200) NOT NULL, 
+	weight INTEGER NOT NULL, 
+	status VARCHAR(10) NOT NULL, 
+	agreed_by BINARY(16), 
+	mid_year_progress INTEGER, 
+	mid_year_note VARCHAR(500), 
+	achievement INTEGER, 
+	final_note VARCHAR(500), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_performance_objective PRIMARY KEY (id), 
+	CONSTRAINT ck_performance_objective_weight CHECK (weight BETWEEN 1 AND 100), 
+	CONSTRAINT ck_performance_objective_mid_year CHECK (mid_year_progress IS NULL OR mid_year_progress BETWEEN 0 AND 100), 
+	CONSTRAINT ck_performance_objective_achievement CHECK (achievement IS NULL OR achievement BETWEEN 0 AND 100), 
+	CONSTRAINT ck_performance_objective_status CHECK (status IN ('agreed','reviewed','assessed','dropped')), 
+	CONSTRAINT fk_performance_objective_staff_id_staff FOREIGN KEY(staff_id) REFERENCES acad.staff (id), 
+	CONSTRAINT fk_performance_objective_cycle_id_appraisal_cycle FOREIGN KEY(cycle_id) REFERENCES acad.appraisal_cycle (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_performance_objective_tenant_id_staff_id_cycle_id ON acad.performance_objective (tenant_id, staff_id, cycle_id);
 
 CREATE TABLE acad.posting_request (
 	staff_id BINARY(16) NOT NULL, 
@@ -245,3 +320,103 @@ CREATE TABLE acad.teacher_registration (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX ix_teacher_registration_tenant_id_staff_id ON acad.teacher_registration (tenant_id, staff_id);
+
+CREATE TABLE acad.appraisal_appeal (
+	appraisal_id BINARY(16) NOT NULL, 
+	grounds VARCHAR(2000) NOT NULL, 
+	status VARCHAR(10) NOT NULL, 
+	lodged_by BINARY(16), 
+	decided_by BINARY(16), 
+	decided_at DATETIME(6), 
+	decision_note VARCHAR(1000), 
+	revised_ratings JSON, 
+	revised_score NUMERIC(5, 2), 
+	revised_band VARCHAR(16), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_appraisal_appeal PRIMARY KEY (id), 
+	CONSTRAINT uq_appraisal_appeal_tenant_id_appraisal_id UNIQUE (tenant_id, appraisal_id), 
+	CONSTRAINT ck_appraisal_appeal_status CHECK (status IN ('lodged','upheld','dismissed')), 
+	CONSTRAINT fk_appraisal_appeal_appraisal_id_appraisal FOREIGN KEY(appraisal_id) REFERENCES acad.appraisal (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE acad.cpd_participation (
+	staff_id BINARY(16) NOT NULL, 
+	programme_id BINARY(16), 
+	title VARCHAR(200) NOT NULL, 
+	provider VARCHAR(200), 
+	category VARCHAR(24) NOT NULL, 
+	activity_type VARCHAR(18) NOT NULL, 
+	started_on DATE, 
+	completed_on DATE, 
+	hours NUMERIC(6, 1), 
+	credit_points INTEGER NOT NULL, 
+	status VARCHAR(14) NOT NULL, 
+	source VARCHAR(12) NOT NULL, 
+	appraisal_id BINARY(16), 
+	evidence VARCHAR(300), 
+	reflection VARCHAR(1000), 
+	nominated_by BINARY(16), 
+	verified_by BINARY(16), 
+	verified_at DATETIME(6), 
+	note VARCHAR(500), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_cpd_participation PRIMARY KEY (id), 
+	CONSTRAINT ck_cpd_participation_status CHECK (status IN ('nominated','enrolled','attended','completed','verified','rejected','withdrawn','self_reported')), 
+	CONSTRAINT ck_cpd_participation_activity_type CHECK (activity_type IN ('programme','workshop','course','conference','mentoring','peer_observation','research','qualification','other')), 
+	CONSTRAINT ck_cpd_participation_category CHECK (category IN ('subject_knowledge','pedagogy','ict','leadership','assessment','inclusive_education','safeguarding','early_years','literacy_numeracy','wellbeing','other')), 
+	CONSTRAINT fk_cpd_participation_staff_id_staff FOREIGN KEY(staff_id) REFERENCES acad.staff (id), 
+	CONSTRAINT fk_cpd_participation_programme_id_cpd_programme FOREIGN KEY(programme_id) REFERENCES acad.cpd_programme (id), 
+	CONSTRAINT fk_cpd_participation_appraisal_id_appraisal FOREIGN KEY(appraisal_id) REFERENCES acad.appraisal (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_cpd_participation_tenant_id_programme_id ON acad.cpd_participation (tenant_id, programme_id);
+
+CREATE INDEX ix_cpd_participation_tenant_id_staff_id ON acad.cpd_participation (tenant_id, staff_id);
+
+CREATE TABLE acad.development_action (
+	staff_id BINARY(16) NOT NULL, 
+	appraisal_id BINARY(16), 
+	need VARCHAR(300) NOT NULL, 
+	action VARCHAR(300) NOT NULL, 
+	category VARCHAR(24) NOT NULL, 
+	due_date DATE, 
+	status VARCHAR(12) NOT NULL, 
+	participation_id BINARY(16), 
+	outcome VARCHAR(500), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_development_action PRIMARY KEY (id), 
+	CONSTRAINT ck_development_action_status CHECK (status IN ('planned','in_progress','done','dropped')), 
+	CONSTRAINT ck_development_action_category CHECK (category IN ('subject_knowledge','pedagogy','ict','leadership','assessment','inclusive_education','safeguarding','early_years','literacy_numeracy','wellbeing','other')), 
+	CONSTRAINT fk_development_action_staff_id_staff FOREIGN KEY(staff_id) REFERENCES acad.staff (id), 
+	CONSTRAINT fk_development_action_appraisal_id_appraisal FOREIGN KEY(appraisal_id) REFERENCES acad.appraisal (id), 
+	CONSTRAINT fk_development_action_participation_id_cpd_participation FOREIGN KEY(participation_id) REFERENCES acad.cpd_participation (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_development_action_tenant_id_staff_id ON acad.development_action (tenant_id, staff_id);

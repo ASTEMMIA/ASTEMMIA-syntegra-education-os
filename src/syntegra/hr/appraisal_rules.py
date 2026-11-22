@@ -25,6 +25,54 @@ class Recommendation(StrEnum):
     COMMENDATION = "commendation"
     TRAINING = "training"
     IMPROVEMENT_PLAN = "improvement_plan"
+    # Probation reviews only (ADR-026)
+    CONFIRM_APPOINTMENT = "confirm_appointment"
+    EXTEND_PROBATION = "extend_probation"
+    TERMINATE_APPOINTMENT = "terminate_appointment"
+
+
+PROBATION_OUTCOMES = frozenset(
+    {
+        Recommendation.CONFIRM_APPOINTMENT,
+        Recommendation.EXTEND_PROBATION,
+        Recommendation.TERMINATE_APPOINTMENT,
+    }
+)
+
+# Which kind of CPD answers a weakness in each criterion (training-needs analysis, ADR-026).
+CRITERION_CPD = {
+    "subject_knowledge": "subject_knowledge",
+    "lesson_planning": "pedagogy",
+    "delivery": "pedagogy",
+    "classroom_management": "pedagogy",
+    "assessment": "assessment",
+    "learner_progress": "literacy_numeracy",
+    "punctuality": "wellbeing",
+    "conduct": "other",
+    "development": "other",
+    "job_knowledge": "other",
+    "quality": "other",
+    "output": "other",
+    "initiative": "leadership",
+    "relationships": "wellbeing",
+}
+
+
+def blend(competency: Decimal, objectives: Decimal | None, objectives_weight: int) -> Decimal:
+    """Overall score: criteria and objectives in the cycle's proportion (objectives_weight %)."""
+    if objectives is None or objectives_weight <= 0:
+        return competency
+    w = Decimal(objectives_weight) / Decimal(100)
+    return (competency * (1 - w) + objectives * w).quantize(Decimal("0.01"), ROUND_HALF_UP)
+
+
+def objectives_score(items: list[tuple[int, int]]) -> Decimal | None:
+    """Weighted achievement of assessed objectives: [(weight, achievement %)]."""
+    total = sum(w for w, _ in items)
+    if not total:
+        return None
+    pct = Decimal(sum(w * a for w, a in items)) / Decimal(total)
+    return pct.quantize(Decimal("0.01"), ROUND_HALF_UP)
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,10 +107,13 @@ NON_TEACHING_CRITERIA = (
 OBSERVATION_CRITERIA = ("lesson_planning", "delivery", "classroom_management", "assessment")
 
 
-def default_template() -> dict[str, list[dict[str, Any]]]:
+def default_template(objectives_weight: int = 0) -> dict[str, Any]:
+    """The default criteria. ``objectives_weight`` is the share (%) of the overall score taken
+    by agreed objectives; 0 means criteria only."""
     return {
         "teaching": _as_dicts(TEACHING_CRITERIA),
         "non_teaching": _as_dicts(NON_TEACHING_CRITERIA),
+        "objectives_weight": objectives_weight,
     }
 
 
@@ -72,6 +123,9 @@ def _as_dicts(criteria: tuple[Criterion, ...]) -> list[dict[str, Any]]:
 
 def check_template(template: dict[str, Any]) -> list[str]:
     errors = []
+    ow = template.get("objectives_weight", 0)
+    if not isinstance(ow, int) or not 0 <= ow <= 70:
+        errors.append("objectives_weight must be a whole number from 0 to 70")
     for category in ("teaching", "non_teaching"):
         items = template.get(category)
         if not isinstance(items, list) or not items:

@@ -79,8 +79,8 @@ countersigned, and the average countersigned score.
   * promotion recommendations can inform posting requests;
   * training recommendations inform CPD (H4);
   * the lesson-planning criterion will draw on the lesson notes from lesson planning (W1) once built.
+* **Expanded by ADR-026:** objectives (Performance Management System), self-assessment, probation
+  reviews, appeals, CPD and development plans.
 * **Open:**
-  * appeals against a countersigned appraisal;
-  * staff self-assessment ratings (today the appraisee comments);
   * per-subject observation forms;
   * printing the completed appraisal as a document.

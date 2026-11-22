@@ -46,6 +46,7 @@ async def _setup(sm, world):
         await s.execute(
             update(AppUser).where(AppUser.id == me.id).values(person_id=a.teacher.person_id)
         )
+        await iam.grant_role(s, user_id=me.id, role_code="TCH", scope_node_id=a.aba.scope_node_id)
     a.head, a.me, a.school = head.id, me.id, a.aba.scope_node_id
     return a
 
@@ -161,7 +162,7 @@ async def test_nobody_appraises_themselves_and_return_flow(sm, world):
             )
     async with sm() as s, s.begin(), as_(a, a.head, a.school):
         ap = await appr.start(s, a.cycle.id, a.colleague.id)
-        with pytest.raises(Conflict, match="already has an appraisal"):
+        with pytest.raises(Conflict, match="already has an annual appraisal"):
             await appr.start(s, a.cycle.id, a.colleague.id)
         await appr.rate(s, ap.id, appr.RatingsIn(ratings=all_rated(3)), submit=True)
     async with sm() as s, s.begin(), as_(a, a.me, a.school):
