@@ -67,6 +67,15 @@ The sign-in page lists `GET /v1/auth/providers?tenant=…` and sends the browser
 `/v1/auth/oidc/{key}/start?tenant=…`. At the first sign-in the person sets up an authenticator app
 and receives ten recovery codes. If a phone is lost, run `syntegra reset-mfa`.
 
+Email (verification links, notices) is queued with the change that needs it and delivered by a
+worker through Amazon SES in the residency region (ADR-017). Set `SYNTEGRA_EMAIL_SENDER=ses` and a
+verified `SYNTEGRA_EMAIL_FROM`; the task role needs only `ses:SendEmail`. Check the set-up, then run the worker:
+
+```bash
+uv run python -m syntegra.cli email-test --to you@example.org
+uv run python -m syntegra.cli send-email                 # in dev the dev sender prints each message
+```
+
 Access tokens last 10 minutes. Exchange the refresh token at `POST /v1/auth/refresh`, and sign out with
 `POST /v1/auth/logout`. The dev login does not exist outside dev/test, and the server refuses to start
 there without a real signing key.

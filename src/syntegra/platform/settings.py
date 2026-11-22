@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     captcha_site_key: str | None = None  # public; handed to the web form
     email_sender: Literal["dev", "ses"] = "dev"
     email_from: str = "no-reply@syntegra.education"
+    # Amazon SES (ADR-017). The From address (or its domain) must be a verified SES identity in
+    # this region. Credentials come from the AWS chain (ECS task role), never from settings.
+    ses_region: str | None = None  # default: residency_region (af-south-1, Cape Town)
+    ses_configuration_set: str | None = None  # bounce/complaint events and reputation metrics
     public_base_url: str = "http://localhost:8000"  # links in emails point here
     idempotency_ttl_hours: int = 24
 

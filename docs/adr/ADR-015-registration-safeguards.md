@@ -1,6 +1,6 @@
 # ADR-015: CAPTCHA and email verification for public forms
 
-**Status:** Accepted 2026-11-22. The Amazon SES sender is an open item.
+**Status:** Accepted 2026-11-22. The Amazon SES sender is built (ADR-017).
 
 ## Context
 The private school application (ADR-014) is public: anyone can submit it without an account. ADR-014
@@ -40,7 +40,7 @@ required a human-verification challenge and verification of the proprietor's ema
 * **Dev/test** print and log messages. Staging and production **refuse to start** without a real sender.
 
 ## Open
-* **The Amazon SES sender adapter.** Production cannot start until it is built and configured.
+* ~~**The Amazon SES sender adapter.**~~ Built in ADR-017.
 * **WAF rate limits** on `/v1/public/*` still belong in front of the application (infrastructure track).
 * **The web form itself:** CAPTCHA widget, verify page at `{public_base_url}/private-schools/verify`.
 

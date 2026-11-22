@@ -202,3 +202,5 @@ class OutboundEmail(Base):
     sent_at: Mapped[datetime | None]
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(String(500))
+    next_attempt_at: Mapped[datetime | None]  # backoff after a temporary failure (ADR-017)
+    provider_message_id: Mapped[str | None] = mapped_column(String(128))  # SES MessageId

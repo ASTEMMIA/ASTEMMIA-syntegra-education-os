@@ -88,6 +88,8 @@ CREATE TABLE ops.outbound_email (
 	sent_at DATETIME(6), 
 	attempts INTEGER NOT NULL, 
 	last_error VARCHAR(500), 
+	next_attempt_at DATETIME(6), 
+	provider_message_id VARCHAR(128), 
 	CONSTRAINT pk_outbound_email PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

@@ -186,6 +186,25 @@ async def send_email(once: bool) -> None:
     await engine.dispose()
 
 
+async def email_test(to: str) -> None:
+    """Send one message straight through the configured sender, to prove the SES set-up
+    (verified identity, region, IAM permission, sandbox) before real email depends on it."""
+    from syntegra.platform.email import Message, build_sender
+
+    settings = get_settings()
+    sender = build_sender(settings)
+    message_id = await sender.send(
+        Message(
+            to,
+            "Syntegra email test",
+            "This is a test message from Syntegra Education. No action is needed.",
+            settings.email_from,
+            "email-test",
+        )
+    )
+    print(f"sent through {settings.email_sender} from {settings.email_from}: {message_id or 'ok'}")
+
+
 async def relay(once: bool) -> None:
     settings = get_settings()
     engine = make_engine(settings.database_url)
@@ -284,6 +303,8 @@ def main() -> None:
     )
     em = sub.add_parser("send-email", help="deliver queued email (dev: printed)")
     em.add_argument("--once", action="store_true")
+    et = sub.add_parser("email-test", help="send one test message through the configured sender")
+    et.add_argument("--to", required=True)
     r = sub.add_parser("relay")
     r.add_argument("--once", action="store_true")
     sso_p = sub.add_parser("configure-sso", help="set an organisation's identity providers")
@@ -322,6 +343,8 @@ def main() -> None:
         )
     elif args.cmd == "send-email":
         asyncio.run(send_email(args.once))
+    elif args.cmd == "email-test":
+        asyncio.run(email_test(args.to))
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))
     elif args.cmd == "configure-sso":
