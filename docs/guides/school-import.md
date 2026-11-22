@@ -63,3 +63,16 @@ python -m syntegra.cli import-institutions schools.csv --board-code ASUBEB      
 python -m syntegra.cli import-institutions schools.csv --board-code ASUBEB --commit
 python -m syntegra.cli import-institutions tertiary.csv --board-code MIN-TERTIARY-EDUCATION --commit
 ```
+
+## Private schools
+
+Private schools are **not** imported by the state. Following the state directive, each proprietor
+registers their own school
+([ADR-014](../adr/ADR-014-private-school-registration.md)):
+
+1. **The proprietor applies** online with the school's details, using the same fields as above,
+   including the full address and postcode, plus their own name, email, phone and CAC number. They
+   receive a reference such as `PSR-2026-000123` and can check its status with it and their email.
+2. **ASUBEB reviews** the application, inspects the site, then approves or rejects it with a reason.
+3. **On approval**, the school appears in the state register as a private school under its LGEA, and the
+   proprietor signs in with their email to set it up.

@@ -90,6 +90,9 @@ class Body(_Model):
     label: str  # e.g. "Board", "Ministry"
     # Education levels it registers (setting `register.levels`). An empty list means none yet.
     registers: list[str] | None = None
+    # Levels for which this body approves PRIVATE institutions' registration applications
+    # (state directive: every private provider must register). None: it does not.
+    regulates_private: list[str] | None = None
     units: Units | None = None
 
 

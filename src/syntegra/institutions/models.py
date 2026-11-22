@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import uuid
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from syntegra.platform.db import Base, TenantScoped
@@ -61,6 +62,10 @@ class Institution(Base, TenantScoped):
     latitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     longitude: Mapped[Decimal | None] = mapped_column(Numeric(9, 6))
     head_person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("mdm.person.id"))
+    # Private institutions (§2): their own tenant holds their operational data; this row is the
+    # regulator's registration record of them, in the state tenant.
+    own_tenant_id: Mapped[uuid.UUID | None]
+    proprietor_name: Mapped[str | None] = mapped_column(String(200))
 
 
 class InstitutionLevel(Base, TenantScoped):
@@ -82,3 +87,37 @@ class InstitutionLevel(Base, TenantScoped):
         ForeignKey("org.institution.id"), nullable=False
     )
     level: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class RegistrationApplication(Base, TenantScoped):
+    """A private provider's application to register an institution (CEDA §22 "Institution
+    registration"; ADR-014). Held in the state tenant at the regulator's scope."""
+
+    __tablename__ = "registration_application"
+    __audit_entity__ = "registration_application"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "reference"),
+        Index(None, "tenant_id", "status"),
+        Index(None, "tenant_id", "location_key", "name_key"),
+        CheckConstraint(
+            "status IN ('submitted','under_review','site_inspection','approved','rejected')",
+            name="status",
+        ),
+        {"schema": "org"},
+    )
+
+    reference: Mapped[str] = mapped_column(String(20), nullable=False)  # PSR-2026-000001
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="submitted")
+    regulator_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    # The institution as applied for: the validated import-row shape (name, type, lga, levels,
+    # address, postcode, contacts), so approval registers exactly what was reviewed.
+    details: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    name_key: Mapped[str] = mapped_column(String(200), nullable=False)
+    location_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    proprietor_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    proprietor_email: Mapped[str] = mapped_column(String(254), nullable=False)
+    proprietor_phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    cac_number: Mapped[str | None] = mapped_column(String(20))  # Corporate Affairs Commission
+    history: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    decision_note: Mapped[str | None] = mapped_column(String(1000))
+    institution_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("org.institution.id"))

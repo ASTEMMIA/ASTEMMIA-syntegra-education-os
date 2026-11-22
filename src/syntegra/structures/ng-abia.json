@@ -51,6 +51,12 @@
         "jss",
         "sss"
       ],
+      "regulates_private": [
+        "eccde",
+        "primary",
+        "jss",
+        "sss"
+      ],
       "units": {
         "label": "LGEA",
         "code_prefix": "LGEA",

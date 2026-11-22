@@ -752,6 +752,16 @@ async def apply_structure(
                 value=list(st.areas),
             )
             created.append("location areas")
+        regulators = [
+            {"body": b.code, "levels": list(b.regulates_private)}
+            for b in st.bodies
+            if b.regulates_private
+        ]
+        if await resolve_config(session, root, "private.registration") != regulators:
+            await set_config(
+                session, scope_node_id=root, key="private.registration", value=regulators
+            )
+            created.append("private registration")
         for b in st.bodies:
             body_id = await node(tenant.root_scope_node_id, st.body_level, b.code, b.name, b.label)
             bodies[b.code] = body_id

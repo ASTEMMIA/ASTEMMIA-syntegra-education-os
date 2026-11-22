@@ -16,7 +16,15 @@ from syntegra.platform.db import make_engine, make_sessionmaker
 from syntegra.platform.settings import Settings, get_settings
 from syntegra.web import problems
 from syntegra.web.auth import build_keys, token_policy
-from syntegra.web.routers import auth, governance, health, iam, institutions, persons
+from syntegra.web.routers import (
+    auth,
+    governance,
+    health,
+    iam,
+    institutions,
+    persons,
+    private_schools,
+)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -62,6 +70,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(iam.router)
     app.include_router(persons.router)
     app.include_router(institutions.router)
+    app.include_router(private_schools.public)
+    app.include_router(private_schools.router)
     return app
 
 
