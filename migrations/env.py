@@ -11,6 +11,7 @@ from alembic import context
 from sqlalchemy.engine import Connection
 
 import syntegra.governance.models
+import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401

@@ -14,6 +14,7 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
 import syntegra.governance.models
+import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401

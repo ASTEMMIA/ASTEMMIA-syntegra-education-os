@@ -64,6 +64,7 @@ async def seed_builtin_roles(session: AsyncSession) -> int:
         ).scalars()
     )
     created = 0
+    await _sync_builtin_permissions(session, existing)
     for code, name in ROLES.items():
         if code in existing:
             continue
@@ -82,6 +83,30 @@ async def seed_builtin_roles(session: AsyncSession) -> int:
         created += 1
     await session.flush()
     return created
+
+
+async def _sync_builtin_permissions(session: AsyncSession, existing: set[str]) -> None:
+    """Give existing built-in roles the permissions added to the baseline since they were
+    seeded (e.g. Staff 360, ADR-024). Never removes a permission."""
+    for code in existing & set(ROLES):
+        role = (
+            await session.execute(
+                select(Role).where(Role.tenant_id.is_(None), Role.builtin, Role.code == code)
+            )
+        ).scalar_one()
+        have = set(
+            (
+                await session.execute(
+                    select(RolePermission.permission).where(RolePermission.role_id == role.id)
+                )
+            ).scalars()
+        )
+        missing = {p: c for p, c in BASELINE[code].items() if p not in have}
+        for perm, cell in missing.items():
+            session.add(RolePermission(role_id=role.id, permission=perm, cell=cell.value))
+        if missing:
+            role.clearance = int(role_clearance(BASELINE[code], PERMISSIONS))
+    await session.flush()
 
 
 async def _role(session: AsyncSession, code: str, tenant_id: uuid.UUID) -> Role:

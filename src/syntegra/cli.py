@@ -17,6 +17,7 @@ import json
 from datetime import date
 
 import syntegra.governance.models
+import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401
@@ -261,6 +262,18 @@ async def import_body_links(text: str, tenant_code: str, board_code: str, commit
     return 0
 
 
+async def sync_roles() -> None:
+    """Add built-in roles and permissions introduced since this database was set up (e.g. the
+    HR officer role and staff and appraisal permissions, ADR-024, ADR-025)."""
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        created = await iam.seed_builtin_roles(session)
+    await engine.dispose()
+    print(f"built-in roles up to date ({created} new)")
+
+
 async def backfill_addresses(tenant_code: str) -> int:
     """Give institutions registered before the gazetteer (ADR-022) their PREMISES address."""
     from sqlalchemy import select
@@ -434,6 +447,7 @@ def main() -> None:
     il.add_argument("--tenant-code", default="NG-AB")
     il.add_argument("--board-code", default="ASUBEB")
     il.add_argument("--commit", action="store_true")
+    sub.add_parser("sync-roles", help="add new built-in roles and permissions")
     bf = sub.add_parser("backfill-addresses", help="premises addresses for existing institutions")
     bf.add_argument("--tenant-code", default="NG-AB")
     ev = sub.add_parser("email-events", help="apply SES bounce/complaint/delivery events")
@@ -491,6 +505,8 @@ def main() -> None:
                 import_body_links(links_text, args.tenant_code, args.board_code, args.commit)
             )
         )
+    elif args.cmd == "sync-roles":
+        asyncio.run(sync_roles())
     elif args.cmd == "backfill-addresses":
         raise SystemExit(asyncio.run(backfill_addresses(args.tenant_code)))
     elif args.cmd == "email-events":

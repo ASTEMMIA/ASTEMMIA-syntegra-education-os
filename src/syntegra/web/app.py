@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 import syntegra.governance.models
+import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401
@@ -30,6 +31,7 @@ from syntegra.web.routers import (
     institutions,
     persons,
     private_schools,
+    staff,
 )
 
 
@@ -88,6 +90,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(institutions.router)
     app.include_router(education_bodies.router)
     app.include_router(addresses.router)
+    app.include_router(staff.router)
     app.include_router(private_schools.public)
     app.include_router(private_schools.router)
     return app

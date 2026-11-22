@@ -29,6 +29,8 @@ ROLES: dict[str, str] = {
     "REC": "Records officer",
     # Phase 0 extension (ADR-004): the programme administrator at the global level (§2 level 1).
     "PADM": "Platform administrator",
+    # HRMS (ADR-024): runs staff records and postings for an employer (e.g. ASUBEB HR).
+    "HRO": "HR officer",
 }
 
 MATRIX_COLUMNS = (
@@ -88,6 +90,18 @@ PERMISSIONS: dict[str, PermissionDef] = {
         PermissionDef("person:create", "Person 360 — register", T.CONFIDENTIAL),
         PermissionDef("person:edit", "Person 360 — edit", T.CONFIDENTIAL),
         PermissionDef("person:merge", "Person 360 — resolve duplicates and merge", T.CONFIDENTIAL),
+        # Staff 360 (hr, ADR-024)
+        PermissionDef("staff:view", "Staff 360 — view (nominal roll)", T.CONFIDENTIAL),
+        PermissionDef("staff:edit", "Staff 360 — appoint, edit, exit", T.CONFIDENTIAL),
+        PermissionDef(
+            "staff:post", "Staff postings — request and decide (four-eyes)", T.CONFIDENTIAL
+        ),
+        # Appraisal (hr, ADR-025)
+        PermissionDef("appraisal:view", "Appraisal — view", T.CONFIDENTIAL),
+        PermissionDef(
+            "appraisal:conduct", "Appraisal — appraise and observe lessons", T.CONFIDENTIAL
+        ),
+        PermissionDef("appraisal:countersign", "Appraisal — countersign or return", T.CONFIDENTIAL),
     ]
 }
 
@@ -130,15 +144,44 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "policy:publish": Cell.YES,
     },
     "FED": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
-    "STA": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
+    "STA": {
+        "tenant:manage": Cell.YES,
+        "scope_node:manage": Cell.YES,
+        "staff:view": Cell.YES,
+        "staff:post": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:countersign": Cell.YES,
+    },
+    "HRO": {
+        "appraisal:view": Cell.YES,
+        "appraisal:countersign": Cell.YES,
+        "staff:view": Cell.YES,
+        "staff:edit": Cell.YES,
+        "staff:post": Cell.YES,
+        "person:view": Cell.YES,
+        "person:create": Cell.YES,
+        "person:edit": Cell.YES,
+    },
     "IADM": {
         "scope_node:manage": Cell.YES,
         "person:view": Cell.YES,
         "person:create": Cell.YES,
         "person:edit": Cell.YES,
         "person:merge": Cell.YES,
+        "staff:view": Cell.YES,
+        "staff:edit": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:conduct": Cell.YES,
     },
-    "HEAD": {"scope_node:manage": Cell.YES, "person:view": Cell.YES},
+    "HEAD": {
+        "scope_node:manage": Cell.YES,
+        "person:view": Cell.YES,
+        "staff:view": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:conduct": Cell.YES,
+    },
+    # Inspectors observe lessons (§29) and may appraise where the state assigns them.
+    "INSP": {"appraisal:view": Cell.YES, "appraisal:conduct": Cell.YES},
     # Registrar is the Person 360 data steward (§4 "Registry officer", §16.1).
     "REG": {
         "person:view": Cell.YES,

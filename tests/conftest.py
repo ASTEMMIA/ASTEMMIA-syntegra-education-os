@@ -10,6 +10,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 import syntegra.governance.models
+import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.mdm.models  # noqa: F401
