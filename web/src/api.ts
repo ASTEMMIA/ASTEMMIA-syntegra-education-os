@@ -142,7 +142,7 @@ async function refresh(): Promise<boolean> {
 export type Query = Record<string, string | number | boolean | null | undefined>;
 
 interface Options {
-  method?: "GET" | "POST";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   json?: unknown;
   form?: FormData;
   body?: string; // a raw body, e.g. a CSV file's text
@@ -260,6 +260,27 @@ export async function mfa(path: "verify" | "enrolment" | "enrolment/confirm", bo
   });
   if (!r.ok) throw await toError(r);
   return r.json();
+}
+
+/** Parents: ask for a one-time code by email. The answer is the same whether or not the
+ * address has an account, so it says nothing about who is registered. */
+export async function emailCode(tenant: string, email: string): Promise<void> {
+  const r = await fetch("/v1/auth/email-code", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tenant_code: tenant.trim().toUpperCase(), email: email.trim() }),
+  });
+  if (!r.ok) throw await toError(r);
+}
+
+export async function verifyEmailCode(tenant: string, email: string, code: string): Promise<Tokens> {
+  const r = await fetch("/v1/auth/email-code/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tenant_code: tenant.trim().toUpperCase(), email: email.trim(), code: code.trim() }),
+  });
+  if (!r.ok) throw await toError(r);
+  return (await r.json()) as Tokens;
 }
 
 export async function signOut(): Promise<void> {

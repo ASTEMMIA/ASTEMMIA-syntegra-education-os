@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { devLogin, finishSso, mfa, providers, type MfaChallenge, type Provider, type Tokens } from "../api";
+import { devLogin, emailCode, finishSso, mfa, providers, verifyEmailCode, type MfaChallenge, type Provider, type Tokens } from "../api";
 import { useSession } from "../session";
 import { Button, ErrorNote, Field, Loading, useAction } from "../components/ui";
 import { Emblem } from "../components/Emblem";
@@ -59,6 +59,8 @@ export function SignIn() {
             <span className="divider">or, on a development server</span>
           </div>
         )}
+        <ParentSignIn tenant={tenant} />
+        <span className="divider">staff</span>
         <form
           className="stack"
           onSubmit={(e) => {
@@ -78,6 +80,70 @@ export function SignIn() {
         </form>
       </div>
     </main>
+  );
+}
+
+/** Parents sign in with their email address and a 6-digit code sent to it (ADR-030). */
+function ParentSignIn({ tenant }: { tenant: string }) {
+  const s = useSession();
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+  const ask = useAction(async () => {
+    await emailCode(tenant, email);
+    setSent(true);
+  });
+  const verify = useAction(async () => s.signedIn(await verifyEmailCode(tenant, email, code)));
+  if (!open)
+    return (
+      <Button kind="secondary" onClick={() => setOpen(true)}>
+        I am a parent or guardian
+      </Button>
+    );
+  return (
+    <form
+      className="stack panel-soft"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void (sent ? verify.run() : ask.run());
+      }}
+    >
+      <h2>Parents and guardians</h2>
+      <Field label="Your email address" hint="The one you gave your child's school.">
+        {(id) => (
+          <input id={id} type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required readOnly={sent} />
+        )}
+      </Field>
+      {sent && (
+        <>
+          <p className="note-info" role="status">
+            If this address has a parent account, a 6-digit code is on its way. It works once, for 10 minutes.
+          </p>
+          <Field label="6-digit code">
+            {(id) => (
+              <input id={id} value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" required />
+            )}
+          </Field>
+        </>
+      )}
+      <ErrorNote error={ask.error ?? verify.error} />
+      <Button busy={ask.busy || verify.busy} type="submit">
+        {sent ? "Sign in with the code" : "Email me a code"}
+      </Button>
+      {sent && (
+        <button
+          type="button"
+          className="link"
+          onClick={() => {
+            setSent(false);
+            setCode("");
+          }}
+        >
+          Use a different address, or send a new code
+        </button>
+      )}
+    </form>
   );
 }
 

@@ -334,7 +334,7 @@ export interface LearnerRef {
   first_enrolled_on: string | null;
   current: EnrolmentRef | null;
   history: EnrolmentRef[];
-  guardians: { person_id: string; name: string; relationship: string; parental_responsibility: boolean; contact_priority: number; phone: string | null; court_order_flag: boolean }[];
+  guardians: { person_id: string; name: string; relationship: string; parental_responsibility: boolean; contact_priority: number; phone: string | null; court_order_flag: boolean; has_account?: boolean }[];
 }
 
 export interface Application {

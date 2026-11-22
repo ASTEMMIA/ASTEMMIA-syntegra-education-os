@@ -238,7 +238,9 @@ export function ClassPage() {
   const k = c.data!;
   return (
     <div className="page">
-      <PageHead eyebrow={`${k.session_name} · ${k.year_name}`} title={k.name} />
+      <PageHead eyebrow={`${k.session_name} · ${k.year_name}`} title={k.name}>
+        <MessageParents classId={k.id} />
+      </PageHead>
       <div className="two">
         <section className="panel">
           <Dl
@@ -567,5 +569,22 @@ export function MyClassesPage() {
         ))}
       </div>
     </div>
+  );
+}
+
+/** Open (or create) the class's conversation with its parents and go to it. */
+export function MessageParents({ classId }: { classId: string }) {
+  const nav = useNavigate();
+  const open = useAction(
+    async () => (await api<{ id: string }>(`/v1/messaging/classes/${classId}/conversation`, { method: "POST", json: {} })).id,
+    (id) => nav(`/messages/${id}`),
+  );
+  return (
+    <>
+      <Button kind="secondary" busy={open.busy} onClick={() => void open.run()}>
+        Message the parents
+      </Button>
+      <ErrorNote error={open.error} />
+    </>
   );
 }

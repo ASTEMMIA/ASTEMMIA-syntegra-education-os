@@ -221,6 +221,39 @@ function Register({ institutionId }: { institutionId: string }) {
   );
 }
 
+/** Give a parent or guardian an account: messaging with the school, by an emailed code. */
+function GiveAccount({ learnerId, personId, name, done }: { learnerId: string; personId: string; name: string; done: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const give = useAction(
+    async () => api<{ login: string; created: boolean }>(`/v1/learners/${learnerId}/guardians/${personId}/account`, { json: { email } }),
+    done,
+  );
+  if (!open)
+    return (
+      <button className="link small" onClick={() => setOpen(true)}>
+        Give {name} a parent account
+      </button>
+    );
+  return (
+    <form
+      className="row wrap"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void give.run();
+      }}
+    >
+      <Field label={`${name}'s email address`} hint="They sign in with a one-time code sent here, and can message the school.">
+        {(id) => <input id={id} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="off" />}
+      </Field>
+      <Button busy={give.busy} type="submit">
+        Give account
+      </Button>
+      <ErrorNote error={give.error} />
+    </form>
+  );
+}
+
 /** Learner 360: identity, guardians, enrolment history, and what the school can do next. */
 export function LearnerPage() {
   const { id = "" } = useParams();
@@ -252,6 +285,14 @@ export function LearnerPage() {
               <li key={g.person_id}>
                 <strong>{g.name}</strong> · {words(g.relationship)} {g.parental_responsibility && <span className="badge">Parental responsibility</span>}
                 <div className="small">{g.court_order_flag ? "Contact details withheld (court order)" : g.phone ?? "No phone"}</div>
+                {g.has_account ? (
+                  <div className="small good">Has a parent account (messaging)</div>
+                ) : (
+                  s.can("learner:register") &&
+                  g.parental_responsibility &&
+                  !g.court_order_flag &&
+                  cur && <GiveAccount learnerId={x.id} personId={g.person_id} name={g.name} done={l.reload} />
+                )}
               </li>
             ))}
           </ul>

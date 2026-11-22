@@ -14,3 +14,4 @@ trap 'kill $SERVER 2>/dev/null || true' EXIT
 for _ in $(seq 60); do curl -sf "http://127.0.0.1:$PORT/app/" >/dev/null && break; sleep 0.5; done
 BASE=http://127.0.0.1:$PORT SCANS=web/e2e/fixtures SHOTS=${SHOTS:-$WORK/shots}/records node web/e2e/records.e2e.mjs || { tail -40 "$WORK/server.log"; exit 1; }
 BASE=http://127.0.0.1:$PORT FIXTURES=web/e2e/fixtures SHOTS=${SHOTS:-$WORK/shots}/school node web/e2e/school.e2e.mjs || { tail -40 "$WORK/server.log"; exit 1; }
+BASE=http://127.0.0.1:$PORT DB=$WORK/e2e.db FIXTURES=web/e2e/fixtures SHOTS=${SHOTS:-$WORK/shots}/messaging node web/e2e/messaging.e2e.mjs || { tail -40 "$WORK/server.log"; exit 1; }

@@ -14,6 +14,7 @@ import { ClassPage, ClassesPage, MyClassesPage } from "./pages/Classes";
 import { AdmissionsPage } from "./pages/Admissions";
 import { ImportPage, LearnerPage, LearnersPage } from "./pages/Learners";
 import { CalendarPage } from "./pages/Calendar";
+import { MessagesPage, ModerationPage, useUnread } from "./pages/Messages";
 
 const RECORDS = ["/", "/documents", "/files", "/file-plan", "/capture", "/batches", "/dispositions", "/oversight"];
 
@@ -27,7 +28,9 @@ function Shell({ children }: { children: React.ReactNode }) {
   const s = useSession();
   const me = s.me!;
   const loc = useLocation();
-  const inRecords = RECORDS.some((p) => (p === "/" ? loc.pathname === "/" : loc.pathname.startsWith(p)));
+  const unread = useUnread();
+  const parentOnly = me.grants.length > 0 && me.grants.every((g) => g.role === "PAR");
+  const inRecords = !parentOnly && RECORDS.some((p) => (p === "/" ? loc.pathname === "/" : loc.pathname.startsWith(p)));
   const school: NavItem[] = [
     { to: "/learners", label: "Learners", show: s.can("learner:register") || (s.can("learner:view") && s.cell("learner:view") !== "C") },
     { to: "/admissions", label: "Admissions", show: s.can("learner:register", "admission:decide") },
@@ -57,14 +60,26 @@ function Shell({ children }: { children: React.ReactNode }) {
             Syntegra Education
           </span>
           <nav aria-label="Main">
-            {school.filter((n) => n.show).map((n) => (
-              <NavLink key={n.to} to={n.to}>
-                {n.label}
-              </NavLink>
-            ))}
-            <Link to="/" className={inRecords ? "active" : ""} aria-current={inRecords ? "page" : undefined}>
-              Records
-            </Link>
+            <NavLink to="/messages">
+              Messages
+              {unread > 0 && (
+                <span className="nav-count" aria-label={`${unread} unread`}>
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
+            </NavLink>
+            {s.can("message:moderate") && <NavLink to="/moderation">Reports</NavLink>}
+            {!parentOnly &&
+              school.filter((n) => n.show).map((n) => (
+                <NavLink key={n.to} to={n.to}>
+                  {n.label}
+                </NavLink>
+              ))}
+            {!parentOnly && (
+              <Link to="/" className={inRecords ? "active" : ""} aria-current={inRecords ? "page" : undefined}>
+                Records
+              </Link>
+            )}
           </nav>
           <div className="who">
             <label className="sr" htmlFor="scope">
@@ -95,7 +110,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </div>
         </nav>
       )}
-      <InstitutionBar />
+      {!parentOnly && <InstitutionBar />}
       <main id="main" className="main">
         {children}
       </main>
@@ -138,10 +153,14 @@ export function App() {
   if (loc.pathname.startsWith("/sso/callback")) return <SsoCallback />;
   if (s.status === "loading") return <Loading what="Signing you in" />;
   if (s.status === "signedout") return <SignIn />;
+  const parentOnly = !!s.me && s.me.grants.length > 0 && s.me.grants.every((g) => g.role === "PAR");
   return (
     <Shell>
       <Routes>
-        <Route path="/" element={<SearchPage />} />
+        <Route path="/" element={parentOnly ? <Navigate to="/messages" replace /> : <SearchPage />} />
+        <Route path="/messages" element={<MessagesPage />} />
+        <Route path="/messages/:id" element={<MessagesPage />} />
+        <Route path="/moderation" element={<ModerationPage />} />
         <Route path="/documents/:id" element={<DocumentPage />} />
         <Route path="/files" element={<FilesPage />} />
         <Route path="/files/:id" element={<FilePage />} />
