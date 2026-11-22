@@ -21,7 +21,20 @@ your active scope, when you upload. Load them from one spreadsheet saved as **CS
 | `phone`, `email` | no | 0803 123 4567 | Phone numbers are stored in international form (+234…). |
 | `latitude`, `longitude` | no | 5.5320, 7.4860 | Both or neither. |
 
-Download the template from the system (`GET /v1/bulk/institutions/template`), or copy the header row above.
+**Templates for the official lists.** Send these to the bodies that hold the lists:
+
+| Template | For |
+|---|---|
+| [`ASUBEB-schools-template.xlsx`](templates/ASUBEB-schools-template.xlsx) | ASUBEB: every government ECCDE, primary and secondary school |
+| [`Ministry-tertiary-institutions-template.xlsx`](templates/Ministry-tertiary-institutions-template.xlsx) | Ministry of Tertiary Education: government-owned post-secondary institutions |
+
+Each template has drop-down lists (the 17 LGAs, institution types and level combinations), postcode and
+phone columns kept as text, and a *Read me* sheet with an example row. Officials can return the Excel
+file, or save its data sheet as CSV UTF-8. Either way, nothing is registered until the check passes.
+The system also serves a bare CSV header (`GET /v1/bulk/institutions/template`).
+
+Imported rows are recorded as **government-owned**. Private schools register themselves (below). Private
+tertiary institutions are not imported this way yet.
 
 ## Tertiary institutions
 
