@@ -137,6 +137,16 @@ PERMISSIONS: dict[str, PermissionDef] = {
             "class:manage", "Classes — rooms, arms, class teachers, subjects", T.INTERNAL
         ),
         PermissionDef("calendar:manage", "Academic calendar — sessions and terms", T.INTERNAL),
+        # Messaging (msg, ADR-030)
+        PermissionDef("message:moderate", "Messaging — handle reported messages", T.CONFIDENTIAL),
+        PermissionDef(
+            "message:oversee", "Messaging — review a conversation, with a reason", T.CONFIDENTIAL
+        ),
+        PermissionDef(
+            "message:oversee_protected",
+            "Messaging — review a protected (pastoral, HR) conversation",
+            T.RESTRICTED,
+        ),
         PermissionDef(
             "teaching:assign", "Teaching — assign subject teachers and lecturers", T.INTERNAL
         ),
@@ -183,6 +193,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
     },
     "FED": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
     "STA": {
+        "message:oversee": Cell.YES,
         "calendar:manage": Cell.YES,
         "tenant:manage": Cell.YES,
         "scope_node:manage": Cell.YES,
@@ -233,6 +244,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "document:view_restricted": Cell.YES,  # HR casework
     },
     "IADM": {
+        "message:moderate": Cell.YES,
         "learner:register": Cell.YES,
         "admission:decide": Cell.PARTIAL,
         "class:manage": Cell.YES,
@@ -256,6 +268,8 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "records:admin": Cell.YES,
     },
     "HEAD": {
+        "message:moderate": Cell.YES,
+        "message:oversee": Cell.YES,
         "learner:register": Cell.YES,
         "admission:decide": Cell.YES,
         "class:manage": Cell.YES,
@@ -293,12 +307,20 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
     },
     "TCH": {"person:view": Cell.OWN, "document:view_internal": Cell.YES},
     "DPO": {  # subject access requests (§8.4)
+        "message:oversee": Cell.YES,
+        "message:oversee_protected": Cell.YES,
         "person:view": Cell.YES,
         "document:view_internal": Cell.YES,
         "document:view_confidential": Cell.YES,
         "document:view_restricted": Cell.YES,
     },
-    "DSL": {"document:view_restricted": Cell.YES, "document:view_special": Cell.YES},
+    "DSL": {
+        "document:view_restricted": Cell.YES,
+        "document:view_special": Cell.YES,
+        "message:moderate": Cell.YES,
+        "message:oversee": Cell.YES,
+        "message:oversee_protected": Cell.YES,
+    },
     "SENCO": {"document:view_restricted": Cell.PARTIAL},
 }
 

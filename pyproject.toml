@@ -68,7 +68,7 @@ packages = ["syntegra"]
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["syntegra.core.*", "syntegra.governance.*", "syntegra.iam.*", "syntegra.mdm.*", "syntegra.institutions.*", "syntegra.workflow.*", "syntegra.hr.*", "syntegra.records.*", "syntegra.academic.*", "syntegra.learners.*"]
+module = ["syntegra.core.*", "syntegra.governance.*", "syntegra.iam.*", "syntegra.mdm.*", "syntegra.institutions.*", "syntegra.workflow.*", "syntegra.hr.*", "syntegra.records.*", "syntegra.academic.*", "syntegra.learners.*", "syntegra.messaging.*"]
 strict = true
 
 [tool.coverage.run]
@@ -83,12 +83,12 @@ include_external_packages = true
 name = "core is the foundation and imports no domain package"
 type = "forbidden"
 source_modules = ["syntegra.core"]
-forbidden_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.platform", "syntegra.web"]
+forbidden_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.platform", "syntegra.web"]
 
 [[tool.importlinter.contracts]]
 name = "Domain packages never import the web layer (P9 / §10.2)"
 type = "forbidden"
-source_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.platform"]
+source_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.platform"]
 forbidden_modules = ["syntegra.web", "fastapi"]
 
 [[tool.importlinter.contracts]]
@@ -101,6 +101,6 @@ allow_indirect_imports = true
 [[tool.importlinter.contracts]]
 name = "Cross-package access only through api and events (§10.2)"
 type = "forbidden"
-source_modules = ["syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners"]
+source_modules = ["syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging"]
 forbidden_modules = ["syntegra.governance.models", "syntegra.governance.policy"]
 allow_indirect_imports = true

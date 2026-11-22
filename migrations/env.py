@@ -17,6 +17,7 @@ import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.learners.models
 import syntegra.mdm.models
+import syntegra.messaging.models
 import syntegra.records.models  # noqa: F401
 from syntegra.platform.db import SCHEMAS, Base, make_engine
 from syntegra.platform.settings import get_settings

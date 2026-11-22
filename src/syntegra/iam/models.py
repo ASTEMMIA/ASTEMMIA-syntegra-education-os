@@ -122,7 +122,7 @@ class AuthSession(Base, Audited):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
     tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("iam.app_user.id"), nullable=False)
-    method: Mapped[str] = mapped_column(String(16), nullable=False)  # dev | oidc
+    method: Mapped[str] = mapped_column(String(16), nullable=False)  # dev | oidc | email_code
     amr: Mapped[str] = mapped_column(String(64), nullable=False)  # space-separated (RFC 8176)
     created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     absolute_expires_at: Mapped[datetime] = mapped_column(nullable=False)
@@ -222,3 +222,21 @@ class OidcFlow(Base):
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
     used_at: Mapped[datetime | None]
     completed_at: Mapped[datetime | None]  # MFA finished: the challenge cannot be reused
+
+
+class EmailSignInCode(Base):
+    """A one-time sign-in code sent by email (ADR-030). Parents only: staff sign in through
+    their organisation's single sign-on with MFA. Only a hash of the code is kept."""
+
+    __tablename__ = "email_sign_in_code"
+    __table_args__ = (Index(None, "tenant_id", "user_id", "created_at"), {"schema": "iam"})
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("iam.app_user.id"), nullable=False)
+    code_hash: Mapped[bytes] = mapped_column(Hash32(), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    used_at: Mapped[datetime | None]
+    ip: Mapped[str | None] = mapped_column(String(45))

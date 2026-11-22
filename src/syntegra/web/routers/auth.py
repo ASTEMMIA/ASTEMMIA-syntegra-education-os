@@ -283,3 +283,49 @@ async def mfa_recovery_codes(request: Request, policy: PolicyDep) -> JSONRespons
         {"recovery_codes": codes, "next_action": "Your old recovery codes no longer work."},
         headers=NO_STORE,
     )
+
+
+# --------------------------------------------------------------------------- parents: email code
+
+
+class EmailCodeIn(Model):
+    tenant_code: str = Field(min_length=2, max_length=32, examples=["NG-AB"])
+    email: str = Field(min_length=5, max_length=254)
+
+
+class EmailCodeVerifyIn(EmailCodeIn):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+@router.post("/email-code", status_code=202, summary="Parents: email me a sign-in code")
+async def email_code(body: EmailCodeIn, request: Request) -> JSONResponse:
+    ip, _ = _client(request)
+    async with request.app.state.sessionmaker() as session, session.begin():
+        await iam_auth.request_email_code(
+            session, tenant_code=body.tenant_code, email=body.email, ip=ip
+        )
+    # The same answer whether or not the account exists.
+    return JSONResponse({"detail": iam_auth.CODE_SENT}, status_code=202, headers=NO_STORE)
+
+
+@router.post(
+    "/email-code/verify", response_model=TokenOut, summary="Parents: sign in with the code"
+)
+async def email_code_verify(
+    body: EmailCodeVerifyIn, request: Request, policy: PolicyDep
+) -> JSONResponse:
+    ip, ua = _client(request)
+    async with request.app.state.sessionmaker() as session, session.begin():
+        result = await iam_auth.verify_email_code(
+            session,
+            policy,
+            tenant_code=body.tenant_code,
+            email=body.email,
+            code=body.code,
+            ip=ip,
+            user_agent=ua,
+        )
+        # Committed first, so a wrong code counts towards the limit.
+    if isinstance(result, iam_auth.CodeRejected):
+        raise Unauthenticated(result.reason, next_action="Ask for a new code and try again.")
+    return _token_response(result)

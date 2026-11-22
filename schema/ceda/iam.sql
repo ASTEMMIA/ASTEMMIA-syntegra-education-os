@@ -85,6 +85,22 @@ CREATE TABLE iam.auth_session (
 
 CREATE INDEX ix_auth_session_tenant_id_user_id ON iam.auth_session (tenant_id, user_id);
 
+CREATE TABLE iam.email_sign_in_code (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	user_id BINARY(16) NOT NULL, 
+	code_hash BINARY(32) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	expires_at DATETIME(6) NOT NULL, 
+	attempts INTEGER NOT NULL, 
+	used_at DATETIME(6), 
+	ip VARCHAR(45), 
+	CONSTRAINT pk_email_sign_in_code PRIMARY KEY (id), 
+	CONSTRAINT fk_email_sign_in_code_user_id_app_user FOREIGN KEY(user_id) REFERENCES iam.app_user (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_email_sign_in_code_tenant_id_user_id_created_at ON iam.email_sign_in_code (tenant_id, user_id, created_at);
+
 CREATE TABLE iam.mfa_credential (
 	id BINARY(16) NOT NULL, 
 	tenant_id BINARY(16) NOT NULL, 

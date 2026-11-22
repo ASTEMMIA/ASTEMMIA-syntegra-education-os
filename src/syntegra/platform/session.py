@@ -258,8 +258,9 @@ def _before_flush(session: Session, flush_context: Any, instances: Any) -> None:
             )
         if isinstance(obj, TenantScoped):
             _stamp_and_check(session, obj, ctx, new=False)
-        if isinstance(obj, Audited):
-            pending.append(("update", obj, _snapshot(obj, before=True), None, _changed_fields(obj)))
+        if isinstance(obj, Audited) and (changed := _changed_fields(obj)):
+            # Only audited fields count: counters and read markers are excluded (ADR-030).
+            pending.append(("update", obj, _snapshot(obj, before=True), None, changed))
 
     for obj in list(session.deleted):
         if isinstance(obj, Evidential):
@@ -275,7 +276,7 @@ def _before_flush(session: Session, flush_context: Any, instances: Any) -> None:
         if isinstance(obj, Audited):
             pending.append(("delete", obj, _snapshot(obj, before=True), None, None))
 
-    for action, obj, before, _, changed in pending:
+    for action, obj, before, _, fields in pending:
         if action == "create" and getattr(obj, "id", None) is None:
             obj.id = uuid7()  # assign now so the audit event can reference it
         after = None if action == "delete" else _snapshot(obj, before=False)
@@ -288,6 +289,6 @@ def _before_flush(session: Session, flush_context: Any, instances: Any) -> None:
             scope_node_id=obj.audit_scope_node_id(),
             before=before,
             after=after,
-            changed_fields=changed,
+            changed_fields=fields,
             cursor=cursor,
         )

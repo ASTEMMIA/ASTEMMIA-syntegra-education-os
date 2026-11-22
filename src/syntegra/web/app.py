@@ -15,12 +15,13 @@ import syntegra.iam.models
 import syntegra.institutions.models
 import syntegra.learners.models
 import syntegra.mdm.models
+import syntegra.messaging.models
 import syntegra.records.models  # noqa: F401
 from syntegra.iam.oidc import OidcClient
 from syntegra.iam.sso import SsoConfig
 from syntegra.platform.blobstore import build_blob_store
 from syntegra.platform.captcha import build_captcha
-from syntegra.platform.crypto import build_field_crypto
+from syntegra.platform.crypto import build_field_crypto, build_protected_cipher
 from syntegra.platform.db import make_engine, make_sessionmaker
 from syntegra.platform.email import build_sender
 from syntegra.platform.settings import Settings, get_settings
@@ -37,6 +38,7 @@ from syntegra.web.routers import (
     iam,
     institutions,
     learners,
+    messaging,
     persons,
     private_schools,
     records,
@@ -78,6 +80,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.token_policy = token_policy(settings, keys)
     app.state.field_crypto = field_crypto
+    app.state.protected_cipher = build_protected_cipher(
+        env=settings.env,
+        kek_b64=(
+            settings.message_protected_kek_b64.get_secret_value()
+            if settings.message_protected_kek_b64
+            else None
+        ),
+    )
     app.state.captcha = build_captcha(settings)  # refuses the dev stand-in outside dev/test
     app.state.email_sender = build_sender(settings)
     app.state.document_store = build_blob_store(settings)  # refuses local outside dev/test
@@ -107,6 +117,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(academic.router)
     app.include_router(learners.router)
     app.include_router(learners.public)
+    app.include_router(messaging.router)
     if (Path(settings.web_dir) / "index.html").is_file():
         app.include_router(spa.build_router(Path(settings.web_dir)))
     app.include_router(private_schools.public)

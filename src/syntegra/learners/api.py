@@ -1793,6 +1793,7 @@ class GuardianView:
     contact_priority: int
     phone: str | None
     court_order_flag: bool
+    has_account: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -1839,6 +1840,21 @@ async def get_learner(session: AsyncSession, learner_id: uuid.UUID) -> LearnerVi
         .all()
     )
     views = [await _eview(session, e) for e in enrolments]
+    from syntegra.iam.models import AppUser
+
+    with_accounts = set(
+        (
+            await session.execute(
+                select(AppUser.person_id).where(
+                    AppUser.person_id.in_(
+                        select(LearnerGuardian.guardian_person_id).where(
+                            LearnerGuardian.learner_id == ln.id
+                        )
+                    )
+                )
+            )
+        ).scalars()
+    )
     guardians = []
     for g in (
         await session.execute(
@@ -1870,6 +1886,7 @@ async def get_learner(session: AsyncSession, learner_id: uuid.UUID) -> LearnerVi
                 g.contact_priority,
                 phone,
                 g.court_order_flag,
+                gp.id in with_accounts,
             )
         )
     return LearnerView(
@@ -1915,3 +1932,104 @@ async def find_learners(
     if institution_id:
         stmt = stmt.where(Enrolment.institution_id == institution_id)
     return [await _eview(session, e) for e in (await session.execute(stmt)).scalars()]
+
+
+# --------------------------------------------------------------------------- parent accounts
+
+
+@dataclass(frozen=True, slots=True)
+class ParentAccount:
+    user_id: uuid.UUID
+    login: str
+    display_name: str
+    created: bool
+
+
+async def give_guardian_account(
+    session: AsyncSession,
+    learner_id: uuid.UUID,
+    guardian_person_id: uuid.UUID,
+    email: str,
+    *,
+    sign_in_url: str,
+) -> ParentAccount:
+    """Give a parent or guardian an account (ADR-030): the Parent role at the child's school,
+    which shows only their own children, and sign-in by a code sent to this email. Only a
+    guardian with parental responsibility, and never one withheld by a court order (CEDA §26.1)."""
+    from email_validator import EmailNotValidError, validate_email
+
+    from syntegra.iam import api as iam
+    from syntegra.iam.models import AppUser
+    from syntegra.platform.email import queue_email
+
+    ln = await _learner(session, learner_id)
+    link = (
+        await session.execute(
+            select(LearnerGuardian).where(
+                LearnerGuardian.learner_id == ln.id,
+                LearnerGuardian.guardian_person_id == guardian_person_id,
+                LearnerGuardian.valid_to.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if link is None:
+        raise NotFound("that person is not this learner's guardian")
+    if link.court_order_flag:
+        raise Conflict("this guardian's contact is withheld by a court order")
+    if not link.parental_responsibility:
+        raise Conflict("only a guardian with parental responsibility gets an account")
+    e = await _active(session, ln.id)
+    if e is None:
+        raise Conflict("the learner is not enrolled anywhere")
+    school = (
+        await session.execute(
+            select(Institution)
+            .where(Institution.id == e.institution_id)
+            .execution_options(**_bypass())
+        )
+    ).scalar_one()
+    try:
+        address = validate_email(email.strip(), check_deliverability=False).normalized.lower()
+    except EmailNotValidError as exc:
+        raise ValidationFailed(f"the email address is not valid: {exc}") from exc
+    ctx = current_context()
+    guardian = await _person(session, guardian_person_id)
+    user = (
+        await session.execute(
+            select(AppUser).where(
+                AppUser.tenant_id == ctx.tenant_id, AppUser.person_id == guardian.id
+            )
+        )
+    ).scalar_one_or_none()
+    created = user is None
+    if user is None:
+        taken = await iam.user_by_login(session, ctx.tenant_id, address)
+        if taken:
+            raise Conflict("that email address already belongs to another account")
+        view = await iam.create_user(
+            session, tenant_id=ctx.tenant_id, login=address, display_name=_full(guardian)
+        )
+        user = (await session.execute(select(AppUser).where(AppUser.id == view.id))).scalar_one()
+        user.person_id = guardian.id
+        user.mfa_required = False  # the emailed one-time code is the factor (ADR-030)
+    grants = {(g.role_code, g.scope_node_id) for g in await iam.grants_for(session, user.id)}
+    if ("PAR", school.scope_node_id) not in grants:
+        await iam.grant_role(
+            session, user_id=user.id, role_code="PAR", scope_node_id=school.scope_node_id
+        )
+    await session.flush()
+    if created:
+        queue_email(
+            session,
+            tenant_id=ctx.tenant_id,
+            purpose="parent-account",
+            to=user.login,
+            subject=f"Your parent account for {school.name}",
+            body=(
+                f"Dear {user.display_name},\n\n{school.name} has given you an account to follow "
+                "your child's learning and to message the school.\n\n"
+                f"Sign in at {sign_in_url} with this email address; a one-time code is sent to "
+                "you each time.\n"
+            ),
+        )
+    return ParentAccount(user.id, user.login, user.display_name, created)

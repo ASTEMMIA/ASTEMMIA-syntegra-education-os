@@ -16,8 +16,11 @@ from sqlalchemy.types import TypeDecorator
 from syntegra.core.clock import utcnow
 from syntegra.core.ids import uuid7
 
-# The 12 domain schemas of §11.1. On MySQL each is a database in the regional cluster.
-SCHEMAS = ("gov", "iam", "mdm", "org", "acad", "att", "lms", "sg", "well", "fin", "rec", "ops")
+# The domain schemas of §11.1 (plus msg, ADR-030). On MySQL each is a database in the
+# regional cluster.
+SCHEMAS = (
+    "gov", "iam", "mdm", "org", "acad", "att", "lms", "sg", "well", "fin", "rec", "msg", "ops",
+)  # fmt: skip
 
 NAMING = {
     "ix": "ix_%(table_name)s_%(column_0_N_name)s",

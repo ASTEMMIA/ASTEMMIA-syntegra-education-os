@@ -549,6 +549,31 @@ async def list_transfers(
     )
 
 
+class AccountBody(Model):
+    email: str = Field(min_length=5, max_length=254)
+
+
+@router.post(
+    "/learners/{learner_id}/guardians/{person_id}/account",
+    status_code=201,
+    summary="Give a parent or guardian an account (messaging, their children's records)",
+)
+async def guardian_account(
+    learner_id: uuid.UUID, person_id: uuid.UUID, body: AccountBody, request: Request, uow: UowDep
+) -> JSONResponse:
+    key, digest, replayed = await _guard(
+        uow, request, {"l": str(learner_id), "p": str(person_id), "e": body.email}
+    )
+    if replayed:
+        return replayed
+    await uow.require("learner:register")
+    base = str(request.app.state.settings.public_base_url).rstrip("/")
+    a = await lrn.give_guardian_account(
+        uow.session, learner_id, person_id, body.email, sign_in_url=f"{base}/app/"
+    )
+    return remember(uow, key, digest, 201, dump(a))
+
+
 @router.get("/schools", summary="Find a school in the state (to transfer a learner to)")
 async def schools(uow: UowDep, q: str) -> JSONResponse:
     await uow.require("learner:register")

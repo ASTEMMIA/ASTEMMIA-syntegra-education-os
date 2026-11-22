@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     field_kek_b64: SecretStr | None = None
     field_previous_keks_b64: list[str] = []  # still able to decrypt during rotation
     blind_index_key_b64: SecretStr | None = None
+    # Messaging (ADR-030): "protected" conversations (pastoral, HR) use a separate key from the
+    # institutional one, so reading them needs that key as well. Required outside dev/test.
+    message_protected_kek_b64: SecretStr | None = None
 
     # Public forms (ADR-015). Production needs a real CAPTCHA and email sender.
     # "siteverify" works with Cloudflare Turnstile, hCaptcha and Google reCAPTCHA: all accept a
