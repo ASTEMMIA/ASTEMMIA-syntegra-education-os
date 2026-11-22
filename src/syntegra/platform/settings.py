@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"  # links in emails point here
     idempotency_ttl_hours: int = 24
 
+    # Single sign-on (ADR-016). Identity providers are configured per organisation in
+    # auth.identity_providers; their client secrets live only here, as a JSON object keyed by
+    # each provider's client_secret_ref, e.g. {"ABIA_ENTRA": "..."} (from Secrets Manager).
+    oidc_client_secrets: dict[str, SecretStr] = {}
+    # Where identity providers send the browser back. Register this exact URL with each one.
+    oidc_redirect_uri: str | None = None  # default: public_base_url + /v1/auth/oidc/callback
+    authenticator_label: str = "Syntegra Education"  # shown in the authenticator app
+
+    @property
+    def redirect_uri(self) -> str:
+        return self.oidc_redirect_uri or self.public_base_url.rstrip("/") + "/v1/auth/oidc/callback"
+
     @property
     def is_mysql(self) -> bool:
         return self.database_url.startswith("mysql")

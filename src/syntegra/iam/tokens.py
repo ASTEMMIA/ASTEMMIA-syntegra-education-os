@@ -184,3 +184,87 @@ def new_refresh_token() -> tuple[str, bytes]:
 
 def hash_refresh_token(raw: str) -> bytes:
     return hashlib.sha256(raw.encode("utf-8")).digest()
+
+
+# --------------------------------------------------------------------------- MFA challenge
+
+MFA_TOKEN_TYPE = "mfa+jwt"  # noqa: S105 - a media type, not a secret
+MFA_AUDIENCE_SUFFIX = "/mfa"
+
+
+@dataclass(frozen=True, slots=True)
+class MfaClaims:
+    user_id: uuid.UUID
+    tenant_id: uuid.UUID
+    flow_id: uuid.UUID
+    amr: tuple[str, ...]
+    expires_at: datetime
+
+
+def issue_mfa_token(
+    keys: KeySet,
+    *,
+    issuer: str,
+    user_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    flow_id: uuid.UUID,
+    amr: Iterable[str],
+    ttl_seconds: int = 300,
+    now: datetime | None = None,
+) -> tuple[str, datetime]:
+    """Proof that the first factor passed, good only for finishing MFA (ADR-016).
+
+    Its own type and audience mean no API endpoint accepts it as an access token, and it is
+    tied to one sign-in attempt (``fid``), which can be completed only once.
+    """
+    now = now or datetime.now(UTC)
+    exp = now + timedelta(seconds=ttl_seconds)
+    claims = {
+        "iss": issuer,
+        "aud": issuer + MFA_AUDIENCE_SUFFIX,
+        "sub": str(user_id),
+        "tid": str(tenant_id),
+        "fid": str(flow_id),
+        "jti": str(uuid7()),
+        "amr": list(amr),
+        "iat": int(now.timestamp()),
+        "exp": int(exp.timestamp()),
+    }
+    token = jwt.encode(
+        claims,
+        keys.signing_key,
+        algorithm=ALGORITHM,
+        headers={"kid": keys.signing_kid, "typ": MFA_TOKEN_TYPE},
+    )
+    return token, exp
+
+
+def verify_mfa_token(keys: KeySet, token: str, *, issuer: str) -> MfaClaims:
+    fail = Unauthenticated(
+        "this sign-in attempt has expired", next_action="Start signing in again."
+    )
+    try:
+        header = jwt.get_unverified_header(token)
+        if header.get("alg") != ALGORITHM or header.get("typ") != MFA_TOKEN_TYPE:
+            raise fail
+        key = keys.verify_keys.get(str(header.get("kid")))
+        if key is None:
+            raise fail
+        c = jwt.decode(
+            token,
+            key,
+            algorithms=[ALGORITHM],
+            audience=issuer + MFA_AUDIENCE_SUFFIX,
+            issuer=issuer,
+            leeway=LEEWAY_SECONDS,
+            options={"require": ["exp", "iat", "iss", "aud", "sub", "jti"]},
+        )
+        return MfaClaims(
+            user_id=uuid.UUID(c["sub"]),
+            tenant_id=uuid.UUID(c["tid"]),
+            flow_id=uuid.UUID(c["fid"]),
+            amr=tuple(c.get("amr", [])),
+            expires_at=datetime.fromtimestamp(c["exp"], UTC),
+        )
+    except jwt.PyJWTError, KeyError, ValueError, TypeError:
+        raise fail from None

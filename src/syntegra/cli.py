@@ -4,6 +4,9 @@ uv run python -m syntegra.cli init-db
 uv run python -m syntegra.cli bootstrap --admin admin@example.org
 uv run python -m syntegra.cli relay --once
 uv run python -m syntegra.cli verify-audit --day 2026-11-21
+uv run python -m syntegra.cli configure-sso NG-AB providers.json
+uv run python -m syntegra.cli reset-mfa --tenant-code INS-NG-000101 --login head@gcu.test \
+    --reason 'phone lost'
 """
 
 from __future__ import annotations
@@ -212,6 +215,44 @@ async def verify_audit(day: date) -> int:
     return 1 if failures else 0
 
 
+async def configure_sso(tenant_code: str, providers_json: str) -> list[str]:
+    """Set an organisation's identity providers from a JSON list (ADR-016)."""
+    from syntegra.iam import sso
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        found = await sso.set_identity_providers(session, tenant_code, json.loads(providers_json))
+    await engine.dispose()
+    missing = [
+        p.client_secret_ref
+        for p in found
+        if p.client_secret_ref and p.client_secret_ref not in settings.oidc_client_secrets
+    ]
+    if missing:
+        print("note: add these to SYNTEGRA_OIDC_CLIENT_SECRETS: " + ", ".join(missing))
+    print(f"register this redirect URI with each provider: {settings.redirect_uri}")
+    return [p.key for p in found]
+
+
+async def reset_mfa(tenant_code: str, login: str, reason: str) -> None:
+    """Lost phone: remove the user's authenticator app and recovery codes (audited)."""
+    from syntegra.iam import sso
+
+    settings = get_settings()
+    engine = make_engine(settings.database_url)
+    sm = make_sessionmaker(engine)
+    async with sm() as session, session.begin():
+        tenant = await governance.tenant_by_code(session, tenant_code)
+        user = await iam.user_by_login(session, tenant.id, login) if tenant else None
+        if user is None:
+            raise SystemExit(f"{login} not found in {tenant_code}")
+        await sso.reset_mfa(session, user_id=user.id, reason=reason)
+    await engine.dispose()
+    print(f"MFA reset for {login}: they will set up a new authenticator at their next sign-in")
+
+
 def main() -> None:
     p = argparse.ArgumentParser(prog="syntegra")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -245,6 +286,13 @@ def main() -> None:
     em.add_argument("--once", action="store_true")
     r = sub.add_parser("relay")
     r.add_argument("--once", action="store_true")
+    sso_p = sub.add_parser("configure-sso", help="set an organisation's identity providers")
+    sso_p.add_argument("tenant_code", help="e.g. NG-AB (schools beneath it inherit)")
+    sso_p.add_argument("providers_json", help="path to a JSON list of identity providers")
+    rm = sub.add_parser("reset-mfa", help="lost phone: user sets up a new authenticator")
+    rm.add_argument("--tenant-code", required=True)
+    rm.add_argument("--login", required=True)
+    rm.add_argument("--reason", required=True)
     v = sub.add_parser("verify-audit")
     v.add_argument("--day", type=date.fromisoformat, default=date.today())
     args = p.parse_args()
@@ -276,6 +324,15 @@ def main() -> None:
         asyncio.run(send_email(args.once))
     elif args.cmd == "relay":
         asyncio.run(relay(args.once))
+    elif args.cmd == "configure-sso":
+        from pathlib import Path
+
+        keys = asyncio.run(
+            configure_sso(args.tenant_code, Path(args.providers_json).read_text(encoding="utf-8"))
+        )
+        print("identity providers: " + ", ".join(keys))
+    elif args.cmd == "reset-mfa":
+        asyncio.run(reset_mfa(args.tenant_code, args.login, args.reason))
     elif args.cmd == "verify-audit":
         raise SystemExit(asyncio.run(verify_audit(args.day)))
 

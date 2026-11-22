@@ -20,3 +20,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [013](ADR-013-institution-address.md) | Full postal address and postcode for every institution, formats from the structure file | Accepted |
 | [014](ADR-014-private-school-registration.md) | Private school registration: public application, regulator review, own tenant on approval | Accepted (ASUBEB confirmed as regulator) |
 | [015](ADR-015-registration-safeguards.md) | CAPTCHA and email verification on public forms; transactional email outbox | Accepted (SES sender open) |
+| [016](ADR-016-single-sign-on-and-mfa.md) | Single sign-on through OpenID Connect; MFA with authenticator apps and recovery codes | Accepted (passkeys open) |

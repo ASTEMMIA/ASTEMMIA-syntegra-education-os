@@ -184,8 +184,13 @@ async def world(sm) -> World:
 
 
 @pytest.fixture
-async def client(engine, sm, world):
+def app(engine, sm):
     app = create_app(Settings(env="test", database_url="sqlite+aiosqlite://"))
     app.state.engine, app.state.sessionmaker = engine, sm
+    return app
+
+
+@pytest.fixture
+async def client(app, world):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         yield c
