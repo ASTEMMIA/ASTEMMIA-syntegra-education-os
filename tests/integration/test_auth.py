@@ -1,11 +1,10 @@
 import pytest
 from sqlalchemy import select, update
 
-from syntegra.core.clock import today
 from syntegra.iam.models import AppUser, AuthSession
-from syntegra.platform.audit_store import verify_day
 from syntegra.platform.settings import Settings
 from syntegra.web.app import create_app
+from tests.audit_helpers import verify_all_days
 
 LOGIN = {"tenant_code": "INS-NG-000101", "login": "Teacher@GCU.test"}
 
@@ -99,7 +98,7 @@ async def test_sign_in_is_audited_and_chain_stays_intact(client, world, sm):
     t = await _login(client)
     await client.post("/v1/auth/refresh", json={"refresh_token": t["refresh_token"]})
     async with sm() as s:
-        count, breaks = await verify_day(s, world.school_a_tenant, today())
+        count, breaks = await verify_all_days(s, world.school_a_tenant)
     assert breaks == [] and count > 0
 
 

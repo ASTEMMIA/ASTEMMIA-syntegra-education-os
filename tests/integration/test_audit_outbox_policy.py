@@ -3,13 +3,12 @@ from datetime import date
 import pytest
 from sqlalchemy import select, update
 
-from syntegra.core.clock import today
 from syntegra.core.context import use_context
 from syntegra.core.errors import ValidationFailed
 from syntegra.governance import api as governance
-from syntegra.platform.audit_store import verify_day
 from syntegra.platform.models import AuditEvent, OutboxEvent
 from syntegra.platform.outbox import InMemoryPublisher, relay_once
+from tests.audit_helpers import verify_all_days
 
 
 async def test_every_write_is_audited_and_the_chain_verifies(sm, world):
@@ -23,7 +22,7 @@ async def test_every_write_is_audited_and_the_chain_verifies(sm, world):
             await s.execute(select(AuditEvent).where(AuditEvent.entity_id == cfg_id))
         ).scalar_one()
         assert ev.action == "create" and ev.actor_id == world.head_a and ev.after_hash
-        count, breaks = await verify_day(s, world.school_a_tenant, today())
+        count, breaks = await verify_all_days(s, world.school_a_tenant)
         assert count >= 4 and breaks == []
 
 
@@ -37,7 +36,7 @@ async def test_tampering_in_the_database_is_detected(sm, world):
             .values(action="delete")
         )
     async with sm() as s:
-        _, breaks = await verify_day(s, world.school_a_tenant, today())
+        _, breaks = await verify_all_days(s, world.school_a_tenant)
     assert any("tampered" in b.reason for b in breaks)
 
 

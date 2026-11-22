@@ -4,10 +4,9 @@ import asyncio
 
 import pytest
 
-from syntegra.core.clock import today
 from syntegra.core.context import use_context
 from syntegra.governance import api as governance
-from syntegra.platform.audit_store import verify_day
+from tests.audit_helpers import verify_all_days
 from tests.conftest import MYSQL_URL
 
 pytestmark = pytest.mark.skipif(not MYSQL_URL, reason="row locking needs MySQL")
@@ -31,7 +30,7 @@ async def test_concurrent_writers_serialise_on_the_chain_head(sm, world):
 
     await asyncio.gather(*(write(i) for i in range(20)))
     async with sm() as s:
-        count, breaks = await verify_day(s, world.school_b_tenant, today())
+        count, breaks = await verify_all_days(s, world.school_b_tenant)
     assert breaks == []
     assert count >= 20
 
