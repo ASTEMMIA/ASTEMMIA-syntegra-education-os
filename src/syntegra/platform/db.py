@@ -106,6 +106,10 @@ class Evidential:
     """Marker for P7: rows are immutable once committed; corrections are new rows."""
 
 
+class Permanent:
+    """Marker: rows may change but are never deleted (records kept for good, ADR-027)."""
+
+
 class StandardColumns(IdMixin, Audited):
     """The standard columns on every tenant-scoped table (§6.1)."""
 

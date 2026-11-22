@@ -1,8 +1,8 @@
 # ADR-027: Document and records management for schools (EDRMS)
 
-**Status:** Accepted 2026-11-22 (design, recorded in CEDA v1.11). Building it is the next step.
-Retention periods are to be agreed with the Abia State Government.
-
+**Status:** Accepted 2026-11-22. Design recorded in CEDA v1.11; built and recorded in CEDA v1.12
+(package `syntegra.records`, migration 0017). The paper retention periods in the model file plans
+are proposals to agree with the Abia State Government and the State Archives.
 ## Context
 Abia's government schools hold large volumes of paper records. They must be digitised by scanning,
 indexed for easy retrieval, registered to their school, and searchable, with access controlled by
@@ -170,8 +170,71 @@ gets too thick, in which case part 2 is opened. Closure sets the disposal date f
 * **Records manager:** at ASUBEB or the state, owns the file plans, retention classes and disposal
   authority.
 
-**Existing permissions:** `document:index` and `disposal:approve` (§21). To be added: `document:view`
-by classification level, `document:share` and `file:circulate`.
+**Permissions:** `document:index` and `disposal:approve` (§21), plus the records permissions listed
+under "What was built". New roles: ARCH (State Archives officer) and CAPT (capture operator).
+
+## Decisions confirmed by the State (2026-11-22)
+1. **Digital records are kept permanently.** Once a school record is digitised it stays in the
+   state's education repository for good. There is no digital disposal: a document and every
+   version of it can be reclassified or re-indexed, never deleted (the database refuses the delete).
+   Retention periods and disposal apply **only to the paper originals**.
+2. **The State Government and the State Archives control access to all of it.** Both hold roles at
+   the state root (STA, and the new ARCH, State Archives officer), so they see every institution's
+   records and the access log. Only State oversight (`records:oversight`) may lower a
+   classification; schools may only raise one.
+3. **Model file plans for primary, secondary and tertiary institutions** ship with the platform.
+   An institution adopts the one for its levels (or names another) and may add local series.
+4. **Scanning is done in-house or contracted out.** A batch names its operator kind and, for a
+   contractor, the firm and contract reference. The new CAPT role scans only into batches assigned
+   to that operator and cannot read or search the repository.
+
+## What was built
+**Tables** (`rec` schema, migration 0017): `records_series` (an institution's file plan),
+`paper_file` (cover, home location, holder, legal hold, digitised flag), `file_movement`
+(evidential), `digitisation_batch`, `document` (permanent), `document_version` (evidential),
+`document_link`, `document_access` (evidential) and `paper_disposition`.
+
+**Model file plans** (`records/file_plans/*.json`): primary 35 series, secondary 39, tertiary 32,
+grouped by function (governance, learners or students, staff, teaching, finance, estates, plus
+primary education, public examinations, student life, academic programmes and research). Each
+series sets its numbering, default classification, paper retention and paper rule (destroy,
+transfer to the State Archives, or retain), and whether it is a vital record.
+
+**Numbering:** single running file `GOV/6` (then volumes), annual `FIN/2/2026/1`, personal (self)
+`LRN/2/0001`, alphabetical `GOV/4/A/3`. The cover reference adds the institution code and volume.
+
+**Capture:** open batch, operator captures (PDF, TIFF, JPEG or PNG, checked by its signature;
+OCR text and proposed metadata may come from the capture station), finish, quality check by
+someone other than the operator (sample size and defects), reject and rescan as new versions, or
+accept. Each document gets a `DOC-<tenant>-<year>-<seq>` number and SHA-256.
+
+**Indexing and verification:** a person confirms or corrects the metadata (or accepts the proposed
+values), links the document to learners, staff, persons, institutions or applications, and files
+it to a paper file and folio. A second person verifies it (not whoever captured or indexed it),
+and only from an accepted batch. A file whose documents are all verified is marked digitised.
+
+**Storage:** `BlobStore` port. Production uses S3 in af-south-1 with SSE-KMS (AES-256), a SHA-256
+checksum S3 verifies, and `If-None-Match` so a stored file is never replaced; bucket versioning,
+Object Lock, cross-region replication and AWS Backup are set in the infrastructure code. Dev/test
+uses AES-256-GCM in memory or a folder; staging and production refuse to start with it. Downloads
+are checked against the stored checksum.
+
+**Access:** search (metadata and OCR text) and retrieval are trimmed by four new permissions,
+`document:view_internal`, `_confidential`, `_restricted` and `_special`, at the caller's scope.
+Restricted and Special records need a stated purpose. Every view and download is logged with its
+purpose. Other new permissions: `document:capture`, `file:manage`, `records:admin`,
+`records:oversight`.
+
+**Paper files:** open, issue, pass, send out to another office, return (with due dates and an
+overdue list), close, new volume, legal hold, and the file list as CSV. Paper disposition is
+proposed by a records administrator and decided by another person with `disposal:approve`, with a
+destruction certificate or State Archives transfer reference. Destruction needs the file to be
+digitised first; legal holds block it; series marked "retain" are never destroyed.
+
+**Endpoints** (`/v1`): model file plans; an institution's file plan (adopt, add series); files,
+files.csv, movements, close, new volume, legal hold, digitised; batches, my batches, capture,
+finish, check; documents (upload, search, read, content, index, verify, versions, classification,
+access log); disposition due, request, decision, list; and the repository overview.
 
 ## Consequences
 * **Builds on Document 360 and §6.3** rather than a separate product. Every document is linked to the
@@ -185,7 +248,7 @@ by classification level, `document:share` and `file:circulate`.
 
   Digitisation billing (§6.3) follows if the scanning is contracted out.
 * **Open:**
-  * the retention periods;
-  * the file plan for a typical primary, secondary and tertiary institution, to agree with ASUBEB,
-    the Ministry and Abia-SAME;
-  * the scanning hardware and the staffing model (in-house or contracted).
+  * agree the paper retention periods in the three model plans with the State Archives;
+  * production OCR (Textract) and search ranking (OpenSearch); the same permission trimming applies;
+  * the S3 bucket, KMS key, Object Lock and replication in the infrastructure code;
+  * the scanning hardware, and digitisation billing (§6.3) for contracted batches.

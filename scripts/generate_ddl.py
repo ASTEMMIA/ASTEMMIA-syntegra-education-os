@@ -17,7 +17,8 @@ import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
-import syntegra.mdm.models  # noqa: F401
+import syntegra.mdm.models
+import syntegra.records.models  # noqa: F401
 from syntegra.platform.db import SCHEMAS, Base
 
 OUT = Path(__file__).resolve().parent.parent / "schema" / "ceda"

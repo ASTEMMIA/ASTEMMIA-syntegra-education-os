@@ -11,9 +11,11 @@ import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
-import syntegra.mdm.models  # noqa: F401
+import syntegra.mdm.models
+import syntegra.records.models  # noqa: F401
 from syntegra.iam.oidc import OidcClient
 from syntegra.iam.sso import SsoConfig
+from syntegra.platform.blobstore import build_blob_store
 from syntegra.platform.captcha import build_captcha
 from syntegra.platform.crypto import build_field_crypto
 from syntegra.platform.db import make_engine, make_sessionmaker
@@ -32,6 +34,7 @@ from syntegra.web.routers import (
     institutions,
     persons,
     private_schools,
+    records,
     staff,
 )
 
@@ -71,6 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.field_crypto = field_crypto
     app.state.captcha = build_captcha(settings)  # refuses the dev stand-in outside dev/test
     app.state.email_sender = build_sender(settings)
+    app.state.document_store = build_blob_store(settings)  # refuses local outside dev/test
     app.state.sso = SsoConfig(
         client=OidcClient(),
         cipher=field_crypto.cipher,
@@ -93,6 +97,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(addresses.router)
     app.include_router(staff.router)
     app.include_router(development.router)
+    app.include_router(records.router)
     app.include_router(private_schools.public)
     app.include_router(private_schools.router)
     return app

@@ -31,6 +31,10 @@ ROLES: dict[str, str] = {
     "PADM": "Platform administrator",
     # HRMS (ADR-024): runs staff records and postings for an employer (e.g. ASUBEB HR).
     "HRO": "HR officer",
+    # Records (ADR-027): the State Archives oversee the permanent repository with the State
+    # Government; capture operators scan in-house or for a contractor, into assigned batches.
+    "ARCH": "State Archives officer",
+    "CAPT": "Capture operator (in-house or contractor)",
 }
 
 MATRIX_COLUMNS = (
@@ -107,6 +111,21 @@ PERMISSIONS: dict[str, PermissionDef] = {
         PermissionDef(
             "cpd:manage", "CPD — programmes, nominations, verification, plans", T.INTERNAL
         ),
+        # Document and records management (rec, ADR-027). Reading is by classification tier.
+        PermissionDef("document:view_internal", "Documents — read Internal", T.INTERNAL),
+        PermissionDef(
+            "document:view_confidential", "Documents — read Confidential", T.CONFIDENTIAL
+        ),
+        PermissionDef("document:view_restricted", "Documents — read Restricted", T.RESTRICTED),
+        PermissionDef("document:view_special", "Documents — read Special", T.SPECIAL),
+        PermissionDef("document:capture", "Documents — scan and upload", T.CONFIDENTIAL),
+        PermissionDef("file:manage", "Paper files — open, track, close", T.INTERNAL),
+        PermissionDef(
+            "records:admin", "Records — file plan, batches, holds, disposition", T.CONFIDENTIAL
+        ),
+        PermissionDef(
+            "records:oversight", "Records — State oversight of the repository", T.SPECIAL
+        ),
     ]
 }
 
@@ -158,6 +177,30 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "appraisal:countersign": Cell.YES,
         "cpd:view": Cell.YES,
         "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,
+        "document:view_special": Cell.YES,
+        "records:oversight": Cell.YES,
+    },
+    "ARCH": {
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,
+        "document:view_special": Cell.YES,
+        "records:oversight": Cell.YES,
+        "records:admin": Cell.YES,
+        "disposal:approve": Cell.YES,
+        "audit:view": Cell.YES,
+    },
+    "CAPT": {"document:capture": Cell.YES},
+    "REC": {
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.PARTIAL,
+        "document:capture": Cell.YES,
+        "file:manage": Cell.YES,
+        "records:admin": Cell.YES,
     },
     "HRO": {
         "appraisal:view": Cell.YES,
@@ -170,6 +213,9 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "person:edit": Cell.YES,
         "cpd:view": Cell.YES,
         "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,  # HR casework
     },
     "IADM": {
         "scope_node:manage": Cell.YES,
@@ -183,6 +229,11 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "appraisal:conduct": Cell.YES,
         "cpd:view": Cell.YES,
         "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:capture": Cell.YES,
+        "file:manage": Cell.YES,
+        "records:admin": Cell.YES,
     },
     "HEAD": {
         "scope_node:manage": Cell.YES,
@@ -192,18 +243,38 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "appraisal:conduct": Cell.YES,
         "cpd:view": Cell.YES,
         "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.PARTIAL,
+        "file:manage": Cell.YES,
+        "records:admin": Cell.YES,
     },
     # Inspectors observe lessons (§29) and may appraise where the state assigns them.
-    "INSP": {"appraisal:view": Cell.YES, "appraisal:conduct": Cell.YES, "cpd:view": Cell.YES},
+    "INSP": {
+        "appraisal:view": Cell.YES,
+        "appraisal:conduct": Cell.YES,
+        "cpd:view": Cell.YES,
+        "document:view_internal": Cell.YES,
+    },
     # Registrar is the Person 360 data steward (§4 "Registry officer", §16.1).
     "REG": {
         "person:view": Cell.YES,
         "person:create": Cell.YES,
         "person:edit": Cell.YES,
         "person:merge": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:capture": Cell.YES,
     },
-    "TCH": {"person:view": Cell.OWN},
-    "DPO": {"person:view": Cell.YES},  # subject access requests (§8.4)
+    "TCH": {"person:view": Cell.OWN, "document:view_internal": Cell.YES},
+    "DPO": {  # subject access requests (§8.4)
+        "person:view": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,
+    },
+    "DSL": {"document:view_restricted": Cell.YES, "document:view_special": Cell.YES},
+    "SENCO": {"document:view_restricted": Cell.PARTIAL},
 }
 
 

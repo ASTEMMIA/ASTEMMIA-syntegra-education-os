@@ -146,8 +146,28 @@ def test_dev_login_route_absent_when_disabled(monkeypatch):
     from syntegra.platform.email import DevEmailSender
 
     monkeypatch.setattr("syntegra.web.app.build_sender", lambda settings: DevEmailSender())
+    with pytest.raises(RuntimeError, match="local document store"):  # and S3 for documents
+        create_app(
+            Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha)
+        )
+    with pytest.raises(RuntimeError, match="DOCUMENT_BUCKET"):  # with its bucket and KMS key
+        create_app(
+            Settings(
+                env="prod",
+                dev_auth=False,
+                token_signing_key_pem=pem,
+                document_store="s3",
+                **keys,
+                **captcha,
+            )
+        )
+    s3 = {
+        "document_store": "s3",
+        "document_bucket": "syntegra-records-af-south-1",
+        "document_kms_key_id": "alias/syntegra-records",
+    }
     app = create_app(
-        Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha)
+        Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha, **s3)
     )
     paths = set(app.openapi()["paths"])
     assert "/v1/auth/dev-login" not in paths and "/v1/auth/refresh" in paths

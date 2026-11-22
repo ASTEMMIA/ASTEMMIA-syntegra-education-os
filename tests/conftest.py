@@ -13,7 +13,8 @@ import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
 import syntegra.institutions.models
-import syntegra.mdm.models  # noqa: F401
+import syntegra.mdm.models
+import syntegra.records.models  # noqa: F401
 from syntegra.core.context import RequestContext, use_context
 from syntegra.governance import api as governance
 from syntegra.governance.domain import GovernanceLevel, Ownership

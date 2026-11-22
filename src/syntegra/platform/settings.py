@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     oidc_redirect_uri: str | None = None  # default: public_base_url + /v1/auth/oidc/callback
     authenticator_label: str = "Syntegra Education"  # shown in the authenticator app
 
+    # Document repository (ADR-027). Production: an S3 bucket with versioning and Object Lock,
+    # SSE-KMS under the repository key. "local" (dev/test) keeps files in memory, or in
+    # document_dir when set.
+    document_store: Literal["local", "s3"] = "local"
+    document_dir: str | None = None
+    document_bucket: str | None = None
+    document_kms_key_id: str | None = None  # key id or ARN
+    document_max_mb: int = Field(default=50, ge=1, le=500)
+
     @property
     def redirect_uri(self) -> str:
         return self.oidc_redirect_uri or self.public_base_url.rstrip("/") + "/v1/auth/oidc/callback"

@@ -22,7 +22,7 @@ from syntegra.core.clock import utcnow
 from syntegra.core.context import RequestContext, maybe_context
 from syntegra.core.errors import InvariantViolation, TenantIsolationError
 from syntegra.core.ids import uuid7
-from syntegra.platform.db import Audited, Evidential, TenantScoped, UUIDBinary
+from syntegra.platform.db import Audited, Evidential, Permanent, TenantScoped, UUIDBinary
 from syntegra.platform.models import AuditChainHead, AuditEvent
 
 # Execution option that lifts the tenancy filter. Only platform jobs (outbox relay, audit
@@ -265,6 +265,10 @@ def _before_flush(session: Session, flush_context: Any, instances: Any) -> None:
         if isinstance(obj, Evidential):
             raise InvariantViolation(
                 f"{type(obj).__name__} is evidential and cannot be deleted (P7)"
+            )
+        if isinstance(obj, Permanent):
+            raise InvariantViolation(
+                f"{type(obj).__name__} is kept permanently and cannot be deleted"
             )
         if isinstance(obj, TenantScoped):
             _stamp_and_check(session, obj, ctx, new=False)
