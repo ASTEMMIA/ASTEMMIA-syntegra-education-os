@@ -68,7 +68,7 @@ packages = ["syntegra"]
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["syntegra.core.*", "syntegra.governance.*", "syntegra.iam.*", "syntegra.mdm.*", "syntegra.institutions.*", "syntegra.workflow.*", "syntegra.hr.*", "syntegra.records.*", "syntegra.academic.*", "syntegra.learners.*", "syntegra.messaging.*", "syntegra.pilot.*", "syntegra.monitoring.*"]
+module = ["syntegra.core.*", "syntegra.governance.*", "syntegra.iam.*", "syntegra.mdm.*", "syntegra.institutions.*", "syntegra.workflow.*", "syntegra.hr.*", "syntegra.records.*", "syntegra.academic.*", "syntegra.learners.*", "syntegra.messaging.*", "syntegra.pilot.*", "syntegra.monitoring.*", "syntegra.attendance.*", "syntegra.assessment.*"]
 strict = true
 
 [tool.coverage.run]
@@ -83,24 +83,24 @@ include_external_packages = true
 name = "core is the foundation and imports no domain package"
 type = "forbidden"
 source_modules = ["syntegra.core"]
-forbidden_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.pilot", "syntegra.monitoring", "syntegra.platform", "syntegra.web"]
+forbidden_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.pilot", "syntegra.monitoring", "syntegra.attendance", "syntegra.assessment", "syntegra.platform", "syntegra.web"]
 
 [[tool.importlinter.contracts]]
 name = "Domain packages never import the web layer (P9 / §10.2)"
 type = "forbidden"
-source_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.pilot", "syntegra.monitoring", "syntegra.platform"]
+source_modules = ["syntegra.governance", "syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.pilot", "syntegra.monitoring", "syntegra.attendance", "syntegra.assessment", "syntegra.platform"]
 forbidden_modules = ["syntegra.web", "fastapi"]
 
 [[tool.importlinter.contracts]]
 name = "Domain layer is framework-free (ports and adapters, §10.1)"
 type = "forbidden"
-source_modules = ["syntegra.governance.domain", "syntegra.iam.domain", "syntegra.mdm.domain", "syntegra.institutions.domain", "syntegra.workflow.domain", "syntegra.hr.domain", "syntegra.records.domain", "syntegra.academic.domain", "syntegra.core"]
+source_modules = ["syntegra.governance.domain", "syntegra.iam.domain", "syntegra.mdm.domain", "syntegra.institutions.domain", "syntegra.workflow.domain", "syntegra.hr.domain", "syntegra.records.domain", "syntegra.academic.domain", "syntegra.assessment.domain", "syntegra.core"]
 forbidden_modules = ["sqlalchemy", "fastapi"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Cross-package access only through api and events (§10.2)"
 type = "forbidden"
-source_modules = ["syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.pilot", "syntegra.monitoring"]
+source_modules = ["syntegra.iam", "syntegra.institutions", "syntegra.mdm", "syntegra.workflow", "syntegra.hr", "syntegra.records", "syntegra.academic", "syntegra.learners", "syntegra.messaging", "syntegra.pilot", "syntegra.monitoring", "syntegra.attendance", "syntegra.assessment"]
 forbidden_modules = ["syntegra.governance.models", "syntegra.governance.policy"]
 allow_indirect_imports = true

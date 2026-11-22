@@ -27,7 +27,7 @@ for (const [width, name] of [[1360, "desktop"], [390, "phone"]]) {
   await p.getByText(/60 of [0-9,]+ learners/).waitFor();
   await p.getByRole("cell", { name: /TEST Pilot Girls Secondary School/ }).waitFor();
   await p.getByText("Not recorded yet").waitFor();
-  for (const area of ["Attendance", "Academic performance", "Infrastructure", "Inspection reports"]) {
+  for (const area of ["Infrastructure", "Inspection reports"]) {
     await p.locator(".not-yet").getByText(area, { exact: true }).waitFor();
   }
   assert.equal(await p.locator(".dot").count(), 4, "the four pilot institutions with coordinates are placed");

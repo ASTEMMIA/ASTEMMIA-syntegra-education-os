@@ -137,6 +137,17 @@ PERMISSIONS: dict[str, PermissionDef] = {
             "class:manage", "Classes — rooms, arms, class teachers, subjects", T.INTERNAL
         ),
         PermissionDef("calendar:manage", "Academic calendar — sessions and terms", T.INTERNAL),
+        # Attendance and examinations (ADR-032)
+        PermissionDef(
+            "attendance:amend", "Attendance — correct a register after the day", T.CONFIDENTIAL
+        ),
+        PermissionDef("staff_attendance:record", "Staff attendance — record", T.CONFIDENTIAL),
+        PermissionDef(
+            "results:approve", "Results — approve, return, publish report cards", T.CONFIDENTIAL
+        ),
+        PermissionDef("exam:schedule", "Examination timetable — set", T.INTERNAL),
+        PermissionDef("assessment:configure", "Assessment — set the parts and grading", T.INTERNAL),
+        PermissionDef("transcript:issue", "Transcripts — issue", T.CONFIDENTIAL),
         # Government Monitoring Dashboard (ADR-031): counts only, no personal details
         PermissionDef("monitoring:view", "Monitoring dashboard — view", T.INTERNAL),
         # Messaging (msg, ADR-030)
@@ -199,6 +210,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "monitoring:view": Cell.YES,
     },
     "STA": {
+        "assessment:configure": Cell.YES,
         "monitoring:view": Cell.YES,
         "message:oversee": Cell.YES,
         "calendar:manage": Cell.YES,
@@ -227,6 +239,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "audit:view": Cell.YES,
     },
     "CAPT": {"document:capture": Cell.YES},
+    "CURA": {"assessment:configure": Cell.YES},
     "REC": {
         "document:view_internal": Cell.YES,
         "document:view_confidential": Cell.YES,
@@ -236,6 +249,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "records:admin": Cell.YES,
     },
     "HRO": {
+        "staff_attendance:record": Cell.YES,
         "appraisal:view": Cell.YES,
         "appraisal:countersign": Cell.YES,
         "staff:view": Cell.YES,
@@ -251,6 +265,11 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "document:view_restricted": Cell.YES,  # HR casework
     },
     "IADM": {
+        "attendance:amend": Cell.YES,
+        "staff_attendance:record": Cell.YES,
+        "results:approve": Cell.YES,
+        "exam:schedule": Cell.YES,
+        "transcript:issue": Cell.YES,
         "monitoring:view": Cell.YES,
         "message:moderate": Cell.YES,
         "learner:register": Cell.YES,
@@ -276,6 +295,11 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "records:admin": Cell.YES,
     },
     "HEAD": {
+        "attendance:amend": Cell.YES,
+        "staff_attendance:record": Cell.YES,
+        "results:approve": Cell.YES,
+        "exam:schedule": Cell.YES,
+        "transcript:issue": Cell.YES,
         "monitoring:view": Cell.YES,
         "message:moderate": Cell.YES,
         "message:oversee": Cell.YES,
@@ -306,6 +330,7 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
     },
     # Registrar is the Person 360 data steward (§4 "Registry officer", §16.1).
     "REG": {
+        "transcript:issue": Cell.YES,
         "learner:register": Cell.YES,
         "person:view": Cell.YES,
         "person:create": Cell.YES,

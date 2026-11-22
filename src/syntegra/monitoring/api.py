@@ -2,9 +2,9 @@
 beneath an office, counted from the platform's own records as they stand now.
 
 Figures are counts only: no names, no message text. Demonstration data (ADR-031) is counted
-separately, so a figure never passes made-up learners off as real ones. Areas the platform does
-not record yet (attendance, results, infrastructure, inspections) are listed as such, never shown
-with invented numbers.
+separately, so a figure never passes made-up learners off as real ones. Attendance and results
+come from registers and approved result sheets (ADR-032). Areas the platform does not record yet
+(infrastructure, inspections) are listed as such, never shown with invented numbers.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, select
@@ -19,6 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from syntegra.academic.domain import YEARS
 from syntegra.academic.models import ClassGroup
+from syntegra.assessment.domain import round2
+from syntegra.attendance.models import Register
 from syntegra.core.clock import today, utcnow
 from syntegra.core.context import current_context
 from syntegra.governance import api as governance
@@ -48,8 +51,6 @@ LEVEL_NAMES = {
 }
 # What the dashboard cannot show yet, and what it needs first. Shown as it is (ADR-031).
 NOT_YET = (
-    ("Attendance", "Daily registers in the attendance module (not built yet)."),
-    ("Academic performance", "Continuous assessment and examination results (not built yet)."),
     (
         "Infrastructure",
         "An infrastructure register: classrooms, broadband, Wi-Fi, solar power, devices, recorded "
@@ -57,6 +58,7 @@ NOT_YET = (
     ),
     ("Inspection reports", "The school inspection module (not built yet)."),
 )
+ATTENDANCE_DAYS = 30
 
 
 @dataclass
@@ -78,6 +80,10 @@ class InstitutionStat:
     classes: int = 0
     places: int = 0
     pupil_teacher_ratio: float | None = None
+    attendance_rate: float | None = None  # learners, last 30 days
+    results: int = 0  # learner results on approved sheets
+    average_score: str | None = None
+    pass_rate: float | None = None
 
 
 @dataclass
@@ -109,6 +115,13 @@ class Overview:
     transfers_waiting: int
     documents: int
     messages_7_days: int
+    attendance_rate: float | None  # learners present or late, last 30 days
+    staff_attendance_rate: float | None
+    registers_today: int  # classes with a morning register today
+    classes_today: int
+    results: int  # learner results on approved sheets
+    average_score: str | None
+    pass_rate: float | None
     by_lga: list[AreaStat] = field(default_factory=list)
     schools: list[InstitutionStat] = field(default_factory=list)
     not_yet: list[dict[str, str]] = field(default_factory=list)
@@ -211,8 +224,33 @@ async def overview(session: AsyncSession) -> Overview:
     ):
         stats[inst_id].classes, stats[inst_id].places = n, int(places or 0)
 
+    from syntegra.assessment import api as assessment
+    from syntegra.attendance import api as attendance
+
+    local_today = attendance.local_now().date()
+    rates = await attendance.rates(
+        session, list(stats), local_today - timedelta(days=ATTENDANCE_DAYS), local_today
+    )
+    perf = await assessment.performance(session, list(stats))
     for s in stats.values():
         s.pupil_teacher_ratio = _ratio(s.learners, s.teachers)
+        marks, present = rates.by_institution.get(s.id, (0, 0))
+        s.attendance_rate = round(present / marks, 3) if marks else None
+        n, ok, pts = perf.by_institution.get(s.id, (0, 0, Decimal(0)))
+        s.results = n
+        s.average_score = str(round2(pts / n)) if n else None
+        s.pass_rate = round(ok / n, 3) if n else None
+    today_regs = (
+        await session.execute(
+            select(func.count(func.distinct(Register.class_group_id)))
+            .where(
+                Register.institution_id.in_(ids),
+                Register.on_date == local_today,
+                Register.session == "am",
+            )
+            .execution_options(**BYPASS)
+        )
+    ).scalar_one()
 
     admissions_open = (
         await session.execute(
@@ -289,6 +327,17 @@ async def overview(session: AsyncSession) -> Overview:
         transfers_waiting=int(transfers),
         documents=int(documents),
         messages_7_days=int(messages),
+        attendance_rate=(
+            round(rates.learner_present / rates.learner_marks, 3) if rates.learner_marks else None
+        ),
+        staff_attendance_rate=(
+            round(rates.staff_present / rates.staff_days, 3) if rates.staff_days else None
+        ),
+        registers_today=int(today_regs),
+        classes_today=sum(s.classes for s in schools) if local_today.weekday() < 5 else 0,
+        results=perf.results,
+        average_score=perf.average,
+        pass_rate=round(perf.passed / perf.results, 3) if perf.results else None,
         by_lga=sorted(areas.values(), key=lambda a: (-a.learners, a.lga)),
         schools=schools,
         not_yet=[{"area": a, "needs": n} for a, n in NOT_YET],

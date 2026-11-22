@@ -9,6 +9,8 @@ from pathlib import Path
 from fastapi import FastAPI
 
 import syntegra.academic.models
+import syntegra.assessment.models
+import syntegra.attendance.models
 import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
@@ -30,6 +32,8 @@ from syntegra.web.auth import build_keys, token_policy
 from syntegra.web.routers import (
     academic,
     addresses,
+    assessment,
+    attendance,
     auth,
     development,
     education_bodies,
@@ -120,6 +124,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(learners.public)
     app.include_router(messaging.router)
     app.include_router(monitoring.router)
+    app.include_router(attendance.router)
+    app.include_router(assessment.router)
     if (Path(settings.web_dir) / "index.html").is_file():
         app.include_router(spa.build_router(Path(settings.web_dir)))
     app.include_router(private_schools.public)

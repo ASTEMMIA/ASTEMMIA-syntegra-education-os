@@ -51,6 +51,24 @@ CREATE TABLE acad.appraisal_cycle (
 	CONSTRAINT ck_appraisal_cycle_period CHECK (period_end >= period_start)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE acad.assessment_policy (
+	group_code VARCHAR(8) NOT NULL, 
+	rules JSON NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_assessment_policy PRIMARY KEY (id), 
+	CONSTRAINT uq_assessment_policy_tenant_id_scope_node_id_group_code UNIQUE (tenant_id, scope_node_id, group_code), 
+	CONSTRAINT ck_assessment_policy_group_code CHECK (group_code IN ('basic','senior','nbte','nuc'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE acad.cpd_programme (
 	code VARCHAR(30) NOT NULL, 
 	title VARCHAR(200) NOT NULL, 
@@ -421,6 +439,27 @@ CREATE INDEX ix_posting_request_tenant_id_staff_id ON acad.posting_request (tena
 
 CREATE INDEX ix_posting_request_tenant_id_status ON acad.posting_request (tenant_id, status);
 
+CREATE TABLE acad.report_comment (
+	learner_id BINARY(16) NOT NULL, 
+	term_id BINARY(16) NOT NULL, 
+	class_teacher VARCHAR(500), 
+	head VARCHAR(500), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_report_comment PRIMARY KEY (id), 
+	CONSTRAINT uq_report_comment_tenant_id_learner_id_term_id UNIQUE (tenant_id, learner_id, term_id), 
+	CONSTRAINT fk_report_comment_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id), 
+	CONSTRAINT fk_report_comment_term_id_academic_period FOREIGN KEY(term_id) REFERENCES acad.academic_period (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE acad.room (
 	institution_id BINARY(16) NOT NULL, 
 	code VARCHAR(20) NOT NULL, 
@@ -562,6 +601,31 @@ CREATE TABLE acad.teacher_registration (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE INDEX ix_teacher_registration_tenant_id_staff_id ON acad.teacher_registration (tenant_id, staff_id);
+
+CREATE TABLE acad.transcript_issue (
+	learner_id BINARY(16) NOT NULL, 
+	reference VARCHAR(24) NOT NULL, 
+	purpose VARCHAR(200) NOT NULL, 
+	content JSON NOT NULL, 
+	content_sha256 VARCHAR(64) NOT NULL, 
+	issued_by BINARY(16), 
+	issued_on DATE NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_transcript_issue PRIMARY KEY (id), 
+	CONSTRAINT uq_transcript_issue_tenant_id_reference UNIQUE (tenant_id, reference), 
+	CONSTRAINT fk_transcript_issue_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_transcript_issue_tenant_id_learner_id ON acad.transcript_issue (tenant_id, learner_id);
 
 CREATE TABLE acad.appraisal_appeal (
 	appraisal_id BINARY(16) NOT NULL, 
@@ -864,6 +928,99 @@ CREATE TABLE acad.offering (
 
 CREATE INDEX ix_offering_tenant_id_class_group_id ON acad.offering (tenant_id, class_group_id);
 
+CREATE TABLE acad.report_card (
+	learner_id BINARY(16) NOT NULL, 
+	institution_id BINARY(16) NOT NULL, 
+	class_group_id BINARY(16) NOT NULL, 
+	term_id BINARY(16) NOT NULL, 
+	version INTEGER NOT NULL, 
+	content JSON NOT NULL, 
+	content_sha256 VARCHAR(64) NOT NULL, 
+	published_by BINARY(16), 
+	published_at DATETIME(6) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_report_card PRIMARY KEY (id), 
+	CONSTRAINT uq_report_card_tenant_id_learner_id_term_id_version UNIQUE (tenant_id, learner_id, term_id, version), 
+	CONSTRAINT fk_report_card_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id), 
+	CONSTRAINT fk_report_card_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_report_card_class_group_id_class_group FOREIGN KEY(class_group_id) REFERENCES acad.class_group (id), 
+	CONSTRAINT fk_report_card_term_id_academic_period FOREIGN KEY(term_id) REFERENCES acad.academic_period (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_report_card_tenant_id_class_group_id_term_id ON acad.report_card (tenant_id, class_group_id, term_id);
+
+CREATE TABLE acad.exam_paper (
+	institution_id BINARY(16) NOT NULL, 
+	offering_id BINARY(16) NOT NULL, 
+	term_id BINARY(16) NOT NULL, 
+	starts_at DATETIME(6) NOT NULL, 
+	duration_minutes INTEGER NOT NULL, 
+	room_id BINARY(16), 
+	invigilator_staff_id BINARY(16), 
+	status VARCHAR(10) NOT NULL, 
+	note VARCHAR(200), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_exam_paper PRIMARY KEY (id), 
+	CONSTRAINT ck_exam_paper_duration CHECK (duration_minutes BETWEEN 10 AND 360), 
+	CONSTRAINT ck_exam_paper_status CHECK (status IN ('scheduled','cancelled')), 
+	CONSTRAINT fk_exam_paper_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_exam_paper_offering_id_offering FOREIGN KEY(offering_id) REFERENCES acad.offering (id), 
+	CONSTRAINT fk_exam_paper_term_id_academic_period FOREIGN KEY(term_id) REFERENCES acad.academic_period (id), 
+	CONSTRAINT fk_exam_paper_room_id_room FOREIGN KEY(room_id) REFERENCES acad.room (id), 
+	CONSTRAINT fk_exam_paper_invigilator_staff_id_staff FOREIGN KEY(invigilator_staff_id) REFERENCES acad.staff (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_exam_paper_tenant_id_institution_id_starts_at ON acad.exam_paper (tenant_id, institution_id, starts_at);
+
+CREATE TABLE acad.result_sheet (
+	institution_id BINARY(16) NOT NULL, 
+	offering_id BINARY(16) NOT NULL, 
+	term_id BINARY(16) NOT NULL, 
+	rules JSON NOT NULL, 
+	status VARCHAR(10) NOT NULL, 
+	submitted_by BINARY(16), 
+	submitted_at DATETIME(6), 
+	approved_by BINARY(16), 
+	approved_at DATETIME(6), 
+	return_note VARCHAR(500), 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_result_sheet PRIMARY KEY (id), 
+	CONSTRAINT uq_result_sheet_tenant_id_offering_id_term_id UNIQUE (tenant_id, offering_id, term_id), 
+	CONSTRAINT ck_result_sheet_status CHECK (status IN ('open','submitted','approved')), 
+	CONSTRAINT fk_result_sheet_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_result_sheet_offering_id_offering FOREIGN KEY(offering_id) REFERENCES acad.offering (id), 
+	CONSTRAINT fk_result_sheet_term_id_academic_period FOREIGN KEY(term_id) REFERENCES acad.academic_period (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_result_sheet_tenant_id_institution_id_term_id ON acad.result_sheet (tenant_id, institution_id, term_id);
+
 CREATE TABLE acad.subject_registration (
 	enrolment_id BINARY(16) NOT NULL, 
 	offering_id BINARY(16) NOT NULL, 
@@ -914,3 +1071,45 @@ CREATE TABLE acad.teaching_assignment (
 CREATE INDEX ix_teaching_assignment_tenant_id_offering_id ON acad.teaching_assignment (tenant_id, offering_id);
 
 CREATE INDEX ix_teaching_assignment_tenant_id_staff_id ON acad.teaching_assignment (tenant_id, staff_id);
+
+CREATE TABLE acad.score (
+	sheet_id BINARY(16) NOT NULL, 
+	learner_id BINARY(16) NOT NULL, 
+	enrolment_id BINARY(16) NOT NULL, 
+	component VARCHAR(8) NOT NULL, 
+	score NUMERIC(5, 2), 
+	absent BOOL NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_score PRIMARY KEY (id), 
+	CONSTRAINT uq_score_tenant_id_sheet_id_learner_id_component UNIQUE (tenant_id, sheet_id, learner_id, component), 
+	CONSTRAINT ck_score_score CHECK (score IS NULL OR score >= 0), 
+	CONSTRAINT fk_score_sheet_id_result_sheet FOREIGN KEY(sheet_id) REFERENCES acad.result_sheet (id), 
+	CONSTRAINT fk_score_learner_id_learner FOREIGN KEY(learner_id) REFERENCES acad.learner (id), 
+	CONSTRAINT fk_score_enrolment_id_enrolment FOREIGN KEY(enrolment_id) REFERENCES acad.enrolment (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_score_tenant_id_learner_id ON acad.score (tenant_id, learner_id);
+
+CREATE TABLE acad.sheet_event (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	sheet_id BINARY(16) NOT NULL, 
+	action VARCHAR(10) NOT NULL, 
+	by_user BINARY(16), 
+	at DATETIME(6) NOT NULL, 
+	note VARCHAR(500), 
+	CONSTRAINT pk_sheet_event PRIMARY KEY (id), 
+	CONSTRAINT ck_sheet_event_action CHECK (action IN ('submitted','approved','returned','reopened')), 
+	CONSTRAINT fk_sheet_event_sheet_id_result_sheet FOREIGN KEY(sheet_id) REFERENCES acad.result_sheet (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_sheet_event_tenant_id_sheet_id ON acad.sheet_event (tenant_id, sheet_id);

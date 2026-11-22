@@ -127,12 +127,8 @@ async def test_demonstration_data_and_monitoring(sm, world, client):
     assert o.girls + o.boys == 151 and o.teachers == out.teachers == o.demo_teachers
     assert o.classes == out.classes and o.pupil_teacher_ratio == round(151 / out.teachers, 1)
     assert {a.lga for a in o.by_lga} >= {"Aba North", "Umuahia North", "Umuahia South", "Osisioma"}
-    assert {x["area"] for x in o.not_yet} == {
-        "Attendance",
-        "Academic performance",
-        "Infrastructure",
-        "Inspection reports",
-    }
+    assert {x["area"] for x in o.not_yet} == {"Infrastructure", "Inspection reports"}
+    assert o.attendance_rate is None and o.results == 0  # no registers or results yet
     assert next(x for x in o.schools if x.id == girls.id).boys == 0
     assert all(x.latitude and x.longitude for x in o.schools if x.id in {p.id for p in pilots})
     # A school sees only itself.

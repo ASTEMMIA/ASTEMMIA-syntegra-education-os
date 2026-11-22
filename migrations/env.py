@@ -11,6 +11,8 @@ from alembic import context
 from sqlalchemy.engine import Connection
 
 import syntegra.academic.models
+import syntegra.assessment.models
+import syntegra.attendance.models
 import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models

@@ -10,6 +10,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 import syntegra.academic.models
+import syntegra.assessment.models
+import syntegra.attendance.models
 import syntegra.governance.models
 import syntegra.hr.models
 import syntegra.iam.models
