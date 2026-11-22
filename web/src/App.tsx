@@ -1,6 +1,7 @@
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router";
 import { useSession } from "./session";
 import { Loading } from "./components/ui";
+import { Emblem } from "./components/Emblem";
 import { SignIn, SsoCallback } from "./pages/SignIn";
 import { SearchPage } from "./pages/Search";
 import { DocumentPage } from "./pages/Document";
@@ -51,7 +52,10 @@ function Shell({ children }: { children: React.ReactNode }) {
       </a>
       <header className="bar">
         <div className="bar-inner">
-          <span className="brand">Syntegra Education</span>
+          <span className="brand">
+            <Emblem code={me.tenant_code} size={34} />
+            Syntegra Education
+          </span>
           <nav aria-label="Main">
             {school.filter((n) => n.show).map((n) => (
               <NavLink key={n.to} to={n.to}>
@@ -104,6 +108,7 @@ function InstitutionBar() {
   if (s.institutions.length <= 1) {
     return s.institution ? (
       <div className="inst-bar">
+        <Emblem code={s.me?.tenant_code} size={48} />
         <span className="eyebrow">Institution</span> <strong>{s.institution.name}</strong>{" "}
         <span className="muted mono">{s.institution.institution_code}</span>
       </div>
@@ -111,6 +116,7 @@ function InstitutionBar() {
   }
   return (
     <div className="inst-bar">
+      <Emblem code={s.me?.tenant_code} size={48} />
       <label className="eyebrow" htmlFor="inst">
         Institution
       </label>

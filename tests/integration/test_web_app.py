@@ -19,6 +19,7 @@ async def test_me_names_and_user_lookup(client, sm, world):
     tch = await _login(client, "teacher@central.example", a.school)
     me = (await client.get("/v1/me", headers=recs)).json()
     assert me["display_name"] == "records@central.example"
+    assert me["tenant_code"] == "NG-AB"
     [g] = me["grants"]
     assert (g["role"], g["role_name"], g["scope_name"]) == (
         "REC",

@@ -22,6 +22,7 @@ export interface Me {
   user_id: string;
   display_name: string | null;
   tenant_id: string;
+  tenant_code: string | null;
   active_scope_id: string;
   grants: Grant[];
   permissions_here: Record<string, string>;

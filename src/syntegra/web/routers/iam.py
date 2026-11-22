@@ -38,6 +38,7 @@ async def me(uow: UowDep) -> MeOut:
     return MeOut(
         user_id=uow.principal.user_id,
         display_name=names.get(uow.principal.user_id),
+        tenant_code=(await governance.get_tenant(uow.session, uow.ctx.tenant_id)).code,
         tenant_id=uow.ctx.tenant_id,
         active_scope_id=uow.ctx.scope_node_id,
         grants=[

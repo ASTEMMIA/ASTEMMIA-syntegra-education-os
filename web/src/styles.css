@@ -84,7 +84,7 @@ input[type="checkbox"], input[type="radio"] { width: auto; }
 /* top bar */
 .bar { background: var(--table); color: #e8efec; }
 .bar-inner { max-width: 1320px; margin: 0 auto; padding: 10px max(16px, env(safe-area-inset-left)); display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
-.brand { font-family: var(--f-head); font-weight: 700; font-size: 1.15rem; }
+.brand { font-family: var(--f-head); font-weight: 700; font-size: 1.15rem; display: inline-flex; align-items: center; gap: 10px; }
 .brand-sub { font-family: var(--f-body); font-weight: 400; font-size: .75rem; opacity: .7; margin-left: 6px; }
 .bar nav { display: flex; flex-wrap: wrap; gap: 2px; flex: 1; }
 .bar nav a { color: #d6e1dd; text-decoration: none; padding: 6px 10px; border-radius: 6px; font-size: .92rem; }
@@ -256,3 +256,8 @@ details.panel > summary { cursor: pointer; list-style: revert; }
 
 form.row { border-top: 1px solid var(--line); padding-top: 12px; }
 .panel > form.row:first-child { border-top: 0; padding-top: 0; }
+
+/* the state's coat of arms */
+.emblem { display: block; max-width: 100%; }
+.bar .emblem { background: #fff; border-radius: 6px; padding: 2px 4px; }
+.signin-emblem { justify-self: center; }

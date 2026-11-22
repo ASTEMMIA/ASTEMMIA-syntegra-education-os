@@ -105,6 +105,7 @@ class GrantOut(Model):
 class MeOut(Model):
     user_id: uuid.UUID
     display_name: str | None = None
+    tenant_code: str | None = None
     tenant_id: uuid.UUID
     active_scope_id: uuid.UUID
     grants: list[GrantOut]

@@ -11,6 +11,7 @@ COPY web/package.json web/package-lock.json web/.npmrc ./
 RUN npm ci --no-audit --no-fund
 COPY web/index.html web/tsconfig.json web/vite.config.ts ./
 COPY web/src ./src
+COPY web/public ./public
 RUN npx tsc -p . && npx vite build
 
 FROM ${UBI} AS build

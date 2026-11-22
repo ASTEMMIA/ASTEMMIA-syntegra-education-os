@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { devLogin, finishSso, mfa, providers, type MfaChallenge, type Provider, type Tokens } from "../api";
 import { useSession } from "../session";
 import { Button, ErrorNote, Field, Loading, useAction } from "../components/ui";
+import { Emblem } from "../components/Emblem";
 
 const TENANT_KEY = "syn.tenant";
 
@@ -37,8 +38,9 @@ export function SignIn() {
   return (
     <main className="signin" id="main">
       <div className="signin-card">
+        <Emblem code={tenant} size={120} className="signin-emblem" />
         <span className="eyebrow">Syntegra Education</span>
-        <h1>Sign in to Records</h1>
+        <h1>Sign in</h1>
         {s.ended && <p className="note-info">Your session ended. Sign in again to carry on.</p>}
         <Field label="Organisation code" hint="For Abia State this is NG-AB.">
           {(id) => <input id={id} value={tenant} onChange={(e) => setTenant(e.target.value)} autoComplete="organization" />}
