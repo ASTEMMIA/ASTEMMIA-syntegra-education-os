@@ -75,7 +75,7 @@ async def test_listing_shows_the_states_own_bodies_and_external_ones(sm, world):
             internal = await eb.jurisdiction_bodies(s)
             exams = await eb.list_bodies(s, role="examination")
             ng_only = await eb.list_bodies(s, country="GH")
-    assert {b["code"] for b in internal} == {"ASUBEB", "MIN-TERTIARY-EDUCATION"}
+    assert {b["code"] for b in internal} == {"ASUBEB", "MIN-TERTIARY-EDUCATION", "ABIA-SAME"}
     assert {b.code for b in exams} == {
         "WAEC",
         "NECO",
@@ -327,7 +327,11 @@ async def test_api(client, sm, world):
     listing = (await client.get("/v1/education-bodies?role=admissions", headers=h)).json()
     assert [b["code"] for b in listing["external"]] == ["JAMB"]
     assert listing["external"][0]["links_recorded"] == ["admissions_code"]
-    assert {b["code"] for b in listing["internal"]} == {"ASUBEB", "MIN-TERTIARY-EDUCATION"}
+    assert {b["code"] for b in listing["internal"]} == {
+        "ASUBEB",
+        "MIN-TERTIARY-EDUCATION",
+        "ABIA-SAME",
+    }
     assert (await client.get("/v1/education-bodies/neco", headers=h)).json()["examinations"][3][
         "code"
     ] == "NCEE"
@@ -381,43 +385,29 @@ async def test_api(client, sm, world):
 
 
 async def test_adult_learning_centres_and_nmec(sm, world):
-    """A state body that registers adult and non-formal centres. Which body does so in Abia is
-    still to be confirmed; here ASUBEB's levels are widened, as a structure file would."""
-    from sqlalchemy import update
-
-    from syntegra.governance.models import ConfigSetting
-
+    """Abia-SAME registers adult and non-formal centres; NMEC regulates them (ADR-020)."""
     tenant, bodies, ids = await _setup(sm, world)
-    async with sm() as s, s.begin():
-        with at(tenant, bodies["ASUBEB"]):
-            await s.execute(
-                update(ConfigSetting)
-                .where(
-                    ConfigSetting.scope_node_id == bodies["ASUBEB"],
-                    ConfigSetting.setting_key == "register.levels",
-                )
-                .values(value=["eccde", "primary", "jss", "sss", "adult"])
-            )
     await _register(
         sm,
         tenant,
-        bodies["ASUBEB"],
+        bodies["ABIA-SAME"],
         "name,type,lga,levels,address_line1,town,postcode\n"
         "TEST Ohafia Mass Literacy Centre,Literacy centre,Ohafia,Adult literacy,1 Rd,Ohafia,"
         "440001\n",
     )
     async with sm() as s, s.begin():
-        with at(tenant, bodies["ASUBEB"]):
+        with at(tenant, bodies["ABIA-SAME"]):
             centre = (
                 await s.execute(select(Institution).where(Institution.name.contains("Literacy")))
             ).scalar_one()
             assert centre.institution_type == "adult_learning_centre"
             v = await eb.link_institution(s, centre.id, body_code="NMEC", link_type="accreditation")
             assert v.body_name.startswith("National Commission for Mass Literacy")
-            with pytest.raises(ValidationFailed, match="does not cover"):
-                await eb.link_institution(
-                    s, ids["Community Primary School Ndume"], body_code="NMEC", link_type="approval"
-                )
+    async with sm() as s, s.begin():
+        with at(tenant, bodies["ASUBEB"]), pytest.raises(ValidationFailed, match="does not cover"):
+            await eb.link_institution(
+                s, ids["Community Primary School Ndume"], body_code="NMEC", link_type="approval"
+            )
 
     async with sm() as s, s.begin():
         with at(tenant, bodies["MIN-TERTIARY-EDUCATION"]):

@@ -94,6 +94,14 @@
         "degree",
         "postgraduate"
       ]
+    },
+    {
+      "code": "ABIA-SAME",
+      "name": "Abia State Agency for Mass Literacy, Adult and Non-Formal Education",
+      "label": "Agency",
+      "registers": [
+        "adult"
+      ]
     }
   ],
   "education_bodies": [

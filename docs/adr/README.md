@@ -24,4 +24,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [017](ADR-017-amazon-ses-email.md) | Email delivery through Amazon SES: failure handling, backoff, set-up | Accepted (bounce processing: ADR-018) |
 | [018](ADR-018-ses-bounce-and-complaint-processing.md) | SES bounces, complaints and deliveries: event queue, suppression list, delivery status on applications | Accepted |
 | [019](ADR-019-education-bodies.md) | Education bodies (WAEC, NECO, NABTEB, JAMB, NUC, NBTE, NCCE…) and institutions' exam centres, codes and accreditations | Accepted (result exchange open) |
-| [020](ADR-020-adult-and-non-formal-education.md) | Adult and non-formal education in the register (Adult level, adult learning centres); NMEC and MDCN | Accepted (Abia's registering body to confirm) |
+| [020](ADR-020-adult-and-non-formal-education.md) | Adult and non-formal education in the register (Adult level, adult learning centres); NMEC and MDCN | Accepted (Abia-SAME registers centres) |

@@ -66,7 +66,8 @@ async def _apply(sm, world, data):
 
 async def test_abia_file_builds_boards_lgeas_and_settings_idempotently(sm, world):
     tenant, bodies, created = await _apply(sm, world, load_structure("ng-abia"))
-    assert tenant.code == "NG-AB" and set(bodies) == {"ASUBEB", "MIN-TERTIARY-EDUCATION"}
+    assert tenant.code == "NG-AB"
+    assert set(bodies) == {"ASUBEB", "MIN-TERTIARY-EDUCATION", "ABIA-SAME"}  # ADR-010, ADR-020
     assert "LGEA-UMU-NNEOCHI" in created and "ASUBEB register levels" in created
     assert "location areas" in created and "MIN-TERTIARY-EDUCATION register levels" in created
     async with sm() as s:
@@ -77,6 +78,8 @@ async def test_abia_file_builds_boards_lgeas_and_settings_idempotently(sm, world
                 s, bodies["MIN-TERTIARY-EDUCATION"], "register.levels"
             )
             assert ministry_levels == ["tvet", "nce", "nd", "hnd", "degree", "postgraduate"]
+            same = await governance.resolve_config(s, bodies["ABIA-SAME"], "register.levels")
+            assert same == ["adult"]
             areas = await governance.resolve_config(s, bodies["ASUBEB"], "location.areas")
             assert len(areas) == 17 and "Umu Nneochi" in areas
     _, _, again = await _apply(sm, world, load_structure("ng-abia"))

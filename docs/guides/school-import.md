@@ -12,7 +12,7 @@ your active scope, when you upload. Load them from one spreadsheet saved as **CS
 | `name` | yes | Community Primary School Ndume | 3–200 characters |
 | `type` | tertiary only | Polytechnic | School (default), University, Polytechnic, College of education, Technical college, College of health, Other tertiary. "Poly", "COE" and "School of Nursing" are understood. |
 | `lga` | yes | Umuahia North | One of Abia's 17 LGAs. "Umuahia North LGEA" and "umuahia north l.g.a." also work. |
-| `levels` | yes | Primary · JSS; SSS · ND/HND · Degree; Postgraduate | Schools (ASUBEB): ECCDE, Primary, JSS, SSS. Tertiary (Ministry): TVET, NCE, ND, HND, Degree, Postgraduate. Adult learning centres: Adult (ADR-020). "Pry", "Secondary", "ND/HND", "B.Sc", "PGD" and "NTC/NBC" are understood. |
+| `levels` | yes | Primary · JSS; SSS · ND/HND · Degree; Postgraduate | Schools (ASUBEB): ECCDE, Primary, JSS, SSS. Tertiary (Ministry): TVET, NCE, ND, HND, Degree, Postgraduate. Adult learning centres (Abia-SAME): Adult (ADR-020). "Pry", "Secondary", "ND/HND", "B.Sc", "PGD" and "NTC/NBC" are understood. |
 | `government_code` | no | ASB/UN/001 | ASUBEB's own school number. Strongly recommended: it is the surest way to avoid duplicates. |
 | `address_line1` | **yes** in Abia | 12 Market Road | Street or plot. A column headed "Address" or "Street" also works. |
 | `address_line2` | no | Off Amaekpu Junction | Landmark, PMB, area. |
@@ -27,6 +27,7 @@ your active scope, when you upload. Load them from one spreadsheet saved as **CS
 |---|---|
 | [`ASUBEB-schools-template.xlsx`](templates/ASUBEB-schools-template.xlsx) | ASUBEB: every government ECCDE, primary and secondary school |
 | [`Ministry-tertiary-institutions-template.xlsx`](templates/Ministry-tertiary-institutions-template.xlsx) | Ministry of Tertiary Education: government-owned post-secondary institutions |
+| [`Abia-SAME-centres-template.xlsx`](templates/Abia-SAME-centres-template.xlsx) | Abia-SAME: adult literacy, post-literacy and non-formal education centres |
 
 Each template has drop-down lists (the 17 LGAs, institution types and level combinations), postcode and
 phone columns kept as text, and a *Read me* sheet with an example row. Officials can return the Excel
@@ -71,10 +72,11 @@ name in the same LGA. Case, punctuation and accents are ignored.
 ## Command line (for the implementation team)
 
 ```bash
-python -m syntegra.cli seed-structure ng-abia                      # once: Abia State, ASUBEB + 17 LGEAs, Ministry of Tertiary Education
+python -m syntegra.cli seed-structure ng-abia                      # once: Abia State, ASUBEB + 17 LGEAs, Ministry of Tertiary Education, Abia-SAME
 python -m syntegra.cli import-institutions schools.csv --board-code ASUBEB                       # check only
 python -m syntegra.cli import-institutions schools.csv --board-code ASUBEB --commit
 python -m syntegra.cli import-institutions tertiary.csv --board-code MIN-TERTIARY-EDUCATION --commit
+python -m syntegra.cli import-institutions centres.csv --board-code ABIA-SAME --commit        # adult learning centres
 ```
 
 ## Exam centres, JAMB codes and accreditation

@@ -1,6 +1,6 @@
 # ADR-020: Adult and non-formal education in the register; NMEC and MDCN
 
-**Status:** Accepted 2026-11-22. Which Abia body registers adult learning centres is to be confirmed.
+**Status:** Accepted 2026-11-22. In Abia, **Abia-SAME** registers adult learning centres (confirmed).
 
 ## Context
 CEDA §2 lists **adult and non-formal education** as a sector (ISCED 2-8), and §23.8 describes adult,
@@ -30,11 +30,16 @@ institution type. The catalogue of education bodies (ADR-019) also lacked two bo
   registered, rather than deleting them.
 
 ## Consequences
-* **A body still has to register the centres.** Like every level, the Adult level is registered only
-  by a body whose `registers` list in the structure file includes it. In Abia, neither ASUBEB nor the
-  Ministry of Tertiary Education registers adult centres. Each state has its own agency for mass
-  education. Once Abia's agency and its exact name are confirmed, it is added to `ng-abia.json` as a
-  body that registers `adult`: a data change, not a code change.
+* **Abia-SAME registers the centres in Abia.** Like every level, the Adult level is registered only by
+  a body whose `registers` list in the structure file includes it. The **Abia State Agency for Mass
+  Literacy, Adult and Non-Formal Education (Abia-SAME)** provides literacy, adult education and
+  non-formal programmes across the state. It is a third body in `ng-abia.json` (code `ABIA-SAME`,
+  label "Agency"), registering `adult`. This was a data change, not a code change.
+  * It has no sub-units, like the Ministry: its centres sit directly beneath it, and their local
+    government area is checked against Abia's 17.
+  * Running `seed-structure ng-abia` again adds it to an existing Abia setup.
+  * Import a list of centres with `import-institutions centres.csv --board-code ABIA-SAME`.
+* Other states add their own agency for mass education to their structure file in the same way.
 * **Private registration is unchanged:** ASUBEB regulates private schools only.
 * **Not added:** the National Commission for Nomadic Education. It is not in the CEDA and has no
   institutions in Abia's structure. It can be added to the catalogue the same way if needed.
