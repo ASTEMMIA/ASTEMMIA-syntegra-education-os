@@ -1,6 +1,6 @@
 # ADR-014: Private school registration
 
-**Status:** Accepted 2026-11-22. The regulating body is to be confirmed by the programme owner.
+**Status:** Accepted 2026-11-22. The regulating body, ASUBEB, was confirmed by the programme owner on 2026-11-22.
 
 ## Context
 The state government has directed that **every private school provider must register their school on the
@@ -43,7 +43,7 @@ system**. CEDA:
 
 **4. Which body regulates, and for which levels, is configuration** (`regulates_private` per body in
 the structure file, which becomes `private.registration`). Abia: **ASUBEB, ECCDE to SSS**, following the
-direction that primary and secondary schools sit under ASUBEB. **To be confirmed.** Private
+direction that primary and secondary schools sit under ASUBEB, **confirmed by the programme owner**. Private
 universities are licensed federally (NUC), so tertiary is not offered for private registration here.
 
 ## Security
