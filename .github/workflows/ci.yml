@@ -75,8 +75,48 @@ jobs:
       - run: uv sync --frozen
       - run: uv run alembic upgrade head && uv run pytest -q
 
+  web:
+    # The browser app (ADR-028): types, unit tests, production build, dependency audit.
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: npm ci
+      - name: Types (tsc strict)
+        run: npx tsc -p .
+      - name: Unit tests (vitest)
+        run: npx vitest run
+      - name: Production build
+        run: npx vite build
+      - name: Known vulnerabilities in runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  web-e2e:
+    # Every records role, end to end in Chromium, against the real API (web/e2e/run.sh).
+    needs: [web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { python-version: "3.14" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: uv sync --frozen
+      - run: npm ci
+        working-directory: web
+      - name: Chromium for Playwright
+        working-directory: web
+        run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: Walk through the records app
+        run: SHOTS=${{ runner.temp }}/shots web/e2e/run.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: records-screens, path: "${{ runner.temp }}/shots", if-no-files-found: ignore }
+
   image:
-    needs: [static, mysql, enterprise-runtime]
+    needs: [static, mysql, enterprise-runtime, web]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,3 +127,4 @@ jobs:
           docker run -d --name api -e SYNTEGRA_ENV=dev -e SYNTEGRA_DEV_AUTH=true -p 8000:8000 syntegra:ci
           for i in $(seq 1 30); do curl -fs localhost:8000/healthz && break; sleep 1; done
           docker exec api sh -c 'cat /etc/redhat-release && python3.14 --version'
+          curl -fs localhost:8000/app/ | grep -q '<div id="root">'

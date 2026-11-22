@@ -477,6 +477,12 @@ async def upload(
     return await _capture(request, uow, ("institution", institution_id), file, metadata)
 
 
+@router.get("/batches/{batch_id}/documents", summary="What was captured into a batch (no content)")
+async def batch_documents(batch_id: uuid.UUID, uow: UowDep) -> JSONResponse:
+    await _any(uow, "document:capture", "document:index", "records:admin")
+    return JSONResponse({"items": _dump(await rec.batch_documents(uow.session, batch_id))})
+
+
 @router.post("/batches/{batch_id}/finish", summary="Mark capture of a batch finished")
 async def finish(batch_id: uuid.UUID, request: Request, uow: UowDep) -> JSONResponse:
     key, digest, replayed = await _guarded(uow, request, {"b": str(batch_id), "a": "finish"})
@@ -516,6 +522,7 @@ async def search(
     doc_type: DocType | None = None,
     series_id: uuid.UUID | None = None,
     file_id: uuid.UUID | None = None,
+    batch_id: uuid.UUID | None = None,
     status: Literal["captured", "indexed", "verified"] | None = None,
     link_kind: Literal["learner", "staff", "person", "institution", "application"] | None = None,
     link_target: uuid.UUID | None = None,
@@ -531,6 +538,7 @@ async def search(
             doc_type=doc_type,
             series_id=series_id,
             file_id=file_id,
+            batch_id=batch_id,
             status=status,
             link_kind=link_kind,
             link_target=link_target,

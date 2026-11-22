@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from syntegra.core.clock import today, utcnow
@@ -190,6 +190,43 @@ async def user_by_login(session: AsyncSession, tenant_id: uuid.UUID, login: str)
         )
     ).scalar_one_or_none()
     return UserView(u.id, u.tenant_id, u.login, u.display_name, u.status) if u else None
+
+
+async def user_names(
+    session: AsyncSession, tenant_id: uuid.UUID, ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """Display names for people the screens mention (who scanned, verified, holds a file)."""
+    if not ids:
+        return {}
+    rows = await session.execute(
+        select(AppUser.id, AppUser.display_name).where(
+            AppUser.tenant_id == tenant_id, AppUser.id.in_(list(ids)[:200])
+        )
+    )
+    return {i: n for i, n in rows.all()}
+
+
+async def search_users(
+    session: AsyncSession, tenant_id: uuid.UUID, text: str, limit: int = 20
+) -> list[UserView]:
+    """Active users whose name or login contains the text (to assign a batch or hand a file)."""
+    q = text.strip().lower()
+    if len(q) < 2:
+        return []
+    like = f"%{q.replace('%', '').replace('_', '')}%"
+    rows = (
+        await session.execute(
+            select(AppUser)
+            .where(
+                AppUser.tenant_id == tenant_id,
+                AppUser.status == "active",
+                or_(func.lower(AppUser.display_name).like(like), AppUser.login.like(like)),
+            )
+            .order_by(AppUser.display_name)
+            .limit(min(limit, 50))
+        )
+    ).scalars()
+    return [UserView(u.id, u.tenant_id, u.login, u.display_name, u.status) for u in rows]
 
 
 async def grant_role(

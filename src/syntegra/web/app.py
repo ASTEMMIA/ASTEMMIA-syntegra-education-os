@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 
@@ -35,6 +36,7 @@ from syntegra.web.routers import (
     persons,
     private_schools,
     records,
+    spa,
     staff,
 )
 
@@ -98,6 +100,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(staff.router)
     app.include_router(development.router)
     app.include_router(records.router)
+    if (Path(settings.web_dir) / "index.html").is_file():
+        app.include_router(spa.build_router(Path(settings.web_dir)))
     app.include_router(private_schools.public)
     app.include_router(private_schools.router)
     return app

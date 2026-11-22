@@ -97,7 +97,7 @@ answer `Cache-Control: no-store`.
   (nonce, issuer, audience, expiry), injected codes, expired attempts, wrong client secrets, account
   linking rules, lockout, recovery codes, the provider's MFA and SMS refusal, and the RFC 6238 test
   vectors.
-* **The callback returns JSON** for now. When the web front end exists, it will finish the exchange
+* **The callback returns JSON**; since ADR-028 the browser app's `/app/sso/callback` page receives the provider's redirect and calls it. When the web front end exists, it will finish the exchange
   and keep the tokens out of the browser address bar.
 * **Open:**
   * **Passkeys/FIDO2 (WebAuthn)** need the browser, so they come with the web front end. The

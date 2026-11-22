@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     document_kms_key_id: str | None = None  # key id or ARN
     document_max_mb: int = Field(default=50, ge=1, le=500)
 
+    # The browser app (ADR-028): built files of web/, served at /app when the folder exists.
+    web_dir: str = "web/dist"
+
     @property
     def redirect_uri(self) -> str:
         return self.oidc_redirect_uri or self.public_base_url.rstrip("/") + "/v1/auth/oidc/callback"

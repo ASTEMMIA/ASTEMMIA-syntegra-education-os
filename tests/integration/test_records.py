@@ -509,3 +509,37 @@ async def test_api(client, sm, world):
     assert r.status_code == 403
     r = await client.get(f"/v1/documents/{doc['id']}/access-log", headers=arch)
     assert [x["action"] for x in r.json()["items"]] == ["download"]
+
+
+async def test_first_filing_sets_a_loose_scans_classification(sm, world):
+    a = await _setup(sm, world)
+    async with sm() as s, s.begin(), as_(a, a.rec, a.school):
+        minutes = await rec.open_file(
+            s, a.series["GOV/2"].id, rec.FileIn("PTA minutes 2025", "Office", year=2025)
+        )
+        b = await rec.open_batch(s, a.aba.id, rec.BatchIn("Box 1", "in_house", a.capt))
+    async with sm() as s, s.begin(), as_(a, a.capt, a.school):
+        loose = await rec.capture(s, a.store, b.id, rec.CaptureIn("Scan 0001", pdf()))
+        held = await rec.capture(
+            s, a.store, b.id, rec.CaptureIn("Scan 0002", pdf(), classification="restricted")
+        )
+        assert loose.classification == "confidential"  # the safe default until it is filed
+        # The operator sees what is in their batch (to rescan), never the content.
+        assert [x.document_number for x in await rec.batch_documents(s, b.id)] == [
+            loose.document_number,
+            held.document_number,
+        ]
+    async with sm() as s, s.begin(), as_(a, a.other_capt, a.school):
+        with pytest.raises(Forbidden):
+            await rec.batch_documents(s, b.id)
+    async with sm() as s, s.begin(), as_(a, a.rec, a.school):
+        filed = await rec.index(s, loose.id, rec.IndexIn(file_id=minutes.id, folio=1))
+        assert filed.document.classification == "internal"  # the file decides
+        kept = await rec.index(s, held.id, rec.IndexIn(file_id=minutes.id, folio=2))
+        assert kept.document.classification == "restricted"  # an explicit level is never lowered
+        moved = await rec.index(s, loose.id, rec.IndexIn(file_id=minutes.id))
+        assert moved.document.classification == "internal"
+        found = await rec.search(s, rec.SearchIn(batch_id=b.id, status="indexed"))
+        assert {d.id for d in found} == {loose.id, held.id}
+    async with sm() as s, s.begin(), as_(a, a.tch, a.school):
+        assert [d.id for d in await rec.search(s, rec.SearchIn(batch_id=b.id))] == [loose.id]

@@ -3,6 +3,16 @@
 # supported Python 3.14 from RHEL AppStream. UBI images are freely redistributable and are
 # covered by Red Hat support when run on RHEL or OpenShift (ADR-006).
 ARG UBI=registry.access.redhat.com/ubi10/ubi-minimal:10.2
+# The browser app (ADR-028), built with Node.js 22 from RHEL AppStream.
+FROM ${UBI} AS web
+RUN microdnf install -y --nodocs nodejs npm && microdnf clean all
+WORKDIR /web
+COPY web/package.json web/package-lock.json web/.npmrc ./
+RUN npm ci --no-audit --no-fund
+COPY web/index.html web/tsconfig.json web/vite.config.ts ./
+COPY web/src ./src
+RUN npx tsc -p . && npx vite build
+
 FROM ${UBI} AS build
 RUN microdnf install -y --nodocs python3.14 python3.14-devel gcc \
     && microdnf clean all
@@ -22,6 +32,7 @@ RUN microdnf install -y --nodocs python3.14 shadow-utils \
     && useradd --system --uid 10001 --no-create-home syntegra
 WORKDIR /app
 COPY --from=build --chown=10001:0 /app /app
+COPY --from=web --chown=10001:0 /web/dist /app/web/dist
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 SYNTEGRA_ENV=prod SYNTEGRA_DEV_AUTH=false
 USER 10001
 EXPOSE 8000

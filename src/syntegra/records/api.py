@@ -74,6 +74,7 @@ from syntegra.records.models import (
 )
 
 MAX_SEARCH = 200
+UNFILED_DEFAULT = Classification.CONFIDENTIAL  # a loose scan, until it is filed
 
 # --------------------------------------------------------------------------- access
 
@@ -939,7 +940,11 @@ async def _register(
         if series.institution_id != inst.id:
             raise ValidationFailed("the series belongs to another institution")
     floor = Classification(
-        paper.classification if paper else series.classification if series else "confidential"
+        paper.classification
+        if paper
+        else series.classification
+        if series
+        else UNFILED_DEFAULT.value
     )
     level = floor
     if data.classification:
@@ -1018,6 +1023,33 @@ async def upload(
     inst = await _institution(session, institution_id)
     doc = await _register(session, store, inst, data, batch=None, max_bytes=max_bytes)
     return _doc_view(doc)
+
+
+@dataclass(frozen=True, slots=True)
+class BatchItem:
+    id: uuid.UUID
+    document_number: str
+    title: str
+    status: str
+    current_version: int
+    page_count: int | None
+
+
+async def batch_documents(session: AsyncSession, batch_id: uuid.UUID) -> list[BatchItem]:
+    """What was captured into a batch: numbers and scan titles only, never content. Its
+    operator sees this (to know what to rescan); so do records staff checking the batch."""
+    b = await _batch(session, batch_id)
+    if _actor() != b.operator_user_id and not await _allowed(session, "records:admin"):
+        await _require(session, "document:index")
+    rows = (
+        await session.execute(
+            select(Document).where(Document.batch_id == b.id).order_by(Document.document_number)
+        )
+    ).scalars()
+    return [
+        BatchItem(d.id, d.document_number, d.title, d.status, d.current_version, d.page_count)
+        for d in rows
+    ]
 
 
 async def finish_batch(session: AsyncSession, batch_id: uuid.UUID) -> BatchView:
@@ -1311,7 +1343,18 @@ async def index(session: AsyncSession, document_id: uuid.UUID, data: IndexIn) ->
         f = await _file(session, data.file_id)
         if f.institution_id != d.institution_id:
             raise ValidationFailed("the paper file belongs to another institution")
-        if RANK[Classification(f.classification)] > RANK[Classification(d.classification)]:
+        unfiled_default = (
+            d.status == "captured"
+            and d.file_id is None
+            and d.series_id is None
+            and d.classification == UNFILED_DEFAULT.value
+        )
+        if (
+            unfiled_default
+            or RANK[Classification(f.classification)] > RANK[Classification(d.classification)]
+        ):
+            # A scan captured loose is held at the safe default until it is first filed; the
+            # file then decides. After that a classification is only ever raised here.
             d.classification = f.classification
         d.file_id, d.series_id = f.id, f.series_id
     if data.folio is not None:
@@ -1448,6 +1491,7 @@ class SearchIn:
     doc_type: str | None = None
     series_id: uuid.UUID | None = None
     file_id: uuid.UUID | None = None
+    batch_id: uuid.UUID | None = None
     status: str | None = None
     link_kind: str | None = None
     link_target: uuid.UUID | None = None
@@ -1471,6 +1515,8 @@ async def search(session: AsyncSession, q: SearchIn) -> list[DocumentView]:
         stmt = stmt.where(Document.series_id == q.series_id)
     if q.file_id:
         stmt = stmt.where(Document.file_id == q.file_id)
+    if q.batch_id:
+        stmt = stmt.where(Document.batch_id == q.batch_id)
     if q.status:
         stmt = stmt.where(Document.status == q.status)
     if q.date_from:
