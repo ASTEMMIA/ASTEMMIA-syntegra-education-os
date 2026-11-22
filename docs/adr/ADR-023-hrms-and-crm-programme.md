@@ -20,7 +20,8 @@ What CEDA v1.0 covers:
   * partners, donors and vendors;
   * recruitment candidates.
 
-  The fifth group, "something else", is the platform's own course and content architecture (W1).
+  The fifth group, "something else", is lesson planning: teachers preparing subject lessons for
+  their students (W1).
 * **Payroll is full payroll for all institutions,** government and private, on the platform:
   * salary structures by grade level and step;
   * allowances and deductions: PAYE, PenCom pension, NHF;
@@ -41,7 +42,7 @@ What CEDA v1.0 covers:
 | C2 | Parents and community | Enquiries, complaints and cases from parents and the public; admissions enquiries; interaction history linked to Person and Family 360. |
 | C3 | Partners, donors and vendors | Organisations and contacts, interactions, partnership and sponsorship pipelines, vendor records (with procurement, §25). |
 | C4 | Recruitment candidates | Talent pool, outreach, candidate pipeline (shared with H2). |
-| W1 | Course and content architecture, inside the platform (not a public website) | UX and UI: a clear navigation hierarchy that surfaces courses, projects and community to signed-in users. A course library that grows: each course has a detail page, curriculum and learning outcomes (Curriculum 360 and LMS, CEDA §24). Fast pages, and search within the platform. |
+| W1 | Lesson planning (teachers' subject lessons for students) | Teachers prepare lessons for each subject they teach: lesson plans by class, term and week, built on the curriculum's scheme of work and learning outcomes (NERDC; Curriculum 360 and LMS, CEDA §24); lesson notes and materials. The head teacher (or head of department) vets and approves lesson notes, then they are published to the class's students. Each subject builds up a lesson library a school can reuse. Clear navigation by class, subject and week; fast pages. Not a public website. |
 
 **Common to every phase:**
 * tenant and scope isolation, audited changes, events, and permissions by role;
