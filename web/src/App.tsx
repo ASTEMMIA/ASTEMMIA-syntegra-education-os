@@ -16,6 +16,8 @@ import { ImportPage, LearnerPage, LearnersPage } from "./pages/Learners";
 import { CalendarPage } from "./pages/Calendar";
 import { MessagesPage, ModerationPage, useUnread } from "./pages/Messages";
 import { MonitoringPage } from "./pages/Monitoring";
+import { AttendancePage, StaffAttendancePage } from "./pages/Attendance";
+import { ExamTimetablePage, MarkbookPage, MyChildrenPage, ReportCardPage, ResultsPage, TranscriptPage } from "./pages/Results";
 
 const RECORDS = ["/", "/documents", "/files", "/file-plan", "/capture", "/batches", "/dispositions", "/oversight"];
 
@@ -32,7 +34,13 @@ function Shell({ children }: { children: React.ReactNode }) {
   const unread = useUnread();
   const parentOnly = me.grants.length > 0 && me.grants.every((g) => g.role === "PAR");
   const inRecords = !parentOnly && RECORDS.some((p) => (p === "/" ? loc.pathname === "/" : loc.pathname.startsWith(p)));
+  const teacher = me.grants.some((g) => g.role === "TCH");
   const school: NavItem[] = [
+    { to: "/attendance", label: "Attendance", show: s.can("attendance:mark", "attendance:amend") },
+    { to: "/staff-attendance", label: "Staff attendance", show: s.can("staff_attendance:record") },
+    { to: "/markbook", label: "Markbook", show: teacher || s.can("markbook:edit") },
+    { to: "/results", label: "Results", show: s.can("results:approve") },
+    { to: "/exam-timetable", label: "Exams", show: s.can("exam:schedule") },
     { to: "/learners", label: "Learners", show: s.can("learner:register") || (s.can("learner:view") && s.cell("learner:view") !== "C") },
     { to: "/admissions", label: "Admissions", show: s.can("learner:register", "admission:decide") },
     { to: "/classes", label: "Classes", show: s.can("class:manage", "teaching:assign", "learner:register") },
@@ -61,6 +69,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             Syntegra Education
           </span>
           <nav aria-label="Main">
+            {parentOnly && <NavLink to="/children">My children</NavLink>}
             <NavLink to="/messages">
               Messages
               {unread > 0 && (
@@ -159,11 +168,19 @@ export function App() {
   return (
     <Shell>
       <Routes>
-        <Route path="/" element={parentOnly ? <Navigate to="/messages" replace /> : <SearchPage />} />
+        <Route path="/" element={parentOnly ? <Navigate to="/children" replace /> : <SearchPage />} />
         <Route path="/messages" element={<MessagesPage />} />
         <Route path="/messages/:id" element={<MessagesPage />} />
         <Route path="/moderation" element={<ModerationPage />} />
         <Route path="/monitoring" element={<MonitoringPage />} />
+        <Route path="/attendance" element={<AttendancePage />} />
+        <Route path="/staff-attendance" element={<StaffAttendancePage />} />
+        <Route path="/markbook" element={<MarkbookPage />} />
+        <Route path="/results" element={<ResultsPage />} />
+        <Route path="/exam-timetable" element={<ExamTimetablePage />} />
+        <Route path="/report-cards/:id" element={<ReportCardPage />} />
+        <Route path="/transcripts/:id" element={<TranscriptPage />} />
+        <Route path="/children" element={<MyChildrenPage />} />
         <Route path="/documents/:id" element={<DocumentPage />} />
         <Route path="/files" element={<FilesPage />} />
         <Route path="/files/:id" element={<FilePage />} />

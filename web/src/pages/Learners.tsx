@@ -6,6 +6,7 @@ import { useLoad, useSession } from "../session";
 import { Button, DemoBadge, Dl, Empty, ErrorNote, Field, Loading, PageHead, Status, useAction } from "../components/ui";
 import { NeedInstitution } from "../App";
 import { SessionPicker } from "./Classes";
+import { LearnerResults } from "./Results";
 import type { EnrolmentRef, Items, LearnerRef } from "../types";
 import { date, words } from "../format";
 
@@ -304,6 +305,7 @@ export function LearnerPage() {
           </ul>
         </section>
       </div>
+      <LearnerResults learnerId={x.id} sessionId={cur?.session_id ?? null} />
       <section className="panel">
         <h2>Enrolments</h2>
         <div className="table-wrap">

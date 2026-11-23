@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from syntegra.academic import api as academic
 from syntegra.academic.domain import YEARS, Year
-from syntegra.academic.models import CurriculumAdoption
+from syntegra.academic.models import ClassGroup, CurriculumAdoption, Offering
 from syntegra.core.context import RequestContext, use_context
 from syntegra.core.errors import Conflict, ValidationFailed
 from syntegra.governance import api as governance
@@ -399,3 +399,144 @@ async def load_demo(
     summary.teachers = sum(s.teachers for s in summary.schools)
     summary.classes = sum(s.classes for s in summary.schools)
     return summary
+
+
+# --------------------------------------------------------------------------- demonstration activity
+
+
+@dataclass
+class ActivitySummary:
+    registers: int = 0
+    marks: int = 0
+    staff_days: int = 0
+    scores: int = 0
+    days: list[date] = field(default_factory=list)
+
+
+async def load_activity(
+    session: AsyncSession,
+    tenant_id: uuid.UUID,
+    pilots: list[PilotInstitution],
+    *,
+    days: int = 10,
+    seed: int = 2026,
+) -> ActivitySummary:
+    """Registers for the last school days, staff sign-ins, and the term's first two tests, for
+    the demonstration learners and teachers only. No examination results or report cards: the
+    term's examinations have not happened yet."""
+    import random
+    from datetime import time as clock
+    from decimal import Decimal
+
+    from syntegra.assessment import api as assessment
+    from syntegra.attendance import api as attendance
+
+    if not 1 <= days <= 60:
+        raise ValidationFailed("give between 1 and 60 school days")
+    r = random.Random(seed)  # noqa: S311 - reproducible made-up activity, not secrets
+    out = ActivitySummary()
+    today_local = attendance.local_now().date()
+    candidates = attendance.school_days_back(today_local, days * 2)
+    statuses = ("present", "late", "absent", "excused")
+    weights = (0.91, 0.05, 0.03, 0.01)
+    for p in pilots:
+        with use_context(_system(tenant_id, p.scope_node_id, "pilot-activity")):
+            classes = list(
+                (
+                    await session.execute(
+                        select(ClassGroup).where(
+                            ClassGroup.institution_id == p.id,
+                            ClassGroup.status == "active",
+                        )
+                    )
+                ).scalars()
+            )
+            taken_days: set[date] = set()
+            for c in classes:
+                open_days = []
+                for d in reversed(candidates):
+                    why, term = await attendance.not_a_school_day(session, c, d)
+                    if not why and term is not None:
+                        open_days.append(d)
+                    if len(open_days) == days:
+                        break
+                for d in sorted(open_days):
+                    members = await attendance.members_on(session, c.id, d)
+                    if not members or not all(
+                        mdm.is_demo(person.source_system) for _, _, person in members
+                    ):
+                        continue  # only made-up classes get made-up registers
+                    for sess in ("am", "pm"):
+                        marks = []
+                        for lid, _eid, _person in members:
+                            st = r.choices(statuses, weights)[0]
+                            marks.append(
+                                attendance.MarkIn(lid, st, "Sick" if st == "excused" else None)
+                            )
+                        await attendance.take_register(
+                            session, c.id, d, sess, marks, may_amend=True, amend_reason="demo"
+                        )
+                        out.registers += 1
+                        out.marks += len(marks)
+                    taken_days.add(d)
+            for d in sorted(taken_days):
+                lines = await attendance.staff_day(session, p.id, d)
+                entries = []
+                for ln in lines:
+                    if not ln.demo:
+                        continue
+                    roll = r.random()
+                    if roll < 0.04:
+                        entries.append(attendance.StaffIn(ln.staff_id, "absent"))
+                    elif roll < 0.06:
+                        entries.append(attendance.StaffIn(ln.staff_id, "sick"))
+                    else:
+                        minute = r.randint(0, 45)
+                        t_in = clock(7 + (25 + minute) // 60, (25 + minute) % 60)
+                        late = t_in > clock(8, 0)
+                        entries.append(
+                            attendance.StaffIn(
+                                ln.staff_id,
+                                "late" if late else "present",
+                                t_in,
+                                clock(14, r.randint(0, 50)),
+                            )
+                        )
+                if entries:
+                    await attendance.record_staff(session, p.id, d, entries)
+                    out.staff_days += len(entries)
+            out.days = sorted(set(out.days) | taken_days)
+            # The first two tests of the current term, for every core subject of each class.
+            for c in classes:
+                term = await attendance.term_on(session, c.session_id, today_local)
+                if term is None:
+                    continue
+                offerings = (
+                    await session.execute(
+                        select(Offering).where(
+                            Offering.class_group_id == c.id,
+                            Offering.kind == "core",
+                            Offering.active.is_(True),
+                        )
+                    )
+                ).scalars()
+                for o in offerings:
+                    sheet = await assessment.get_sheet(session, o.id, term.id)
+                    parts = {x["code"]: x["max_score"] for x in sheet.rules["components"]}
+                    tests = [code for code in parts if code != "EXAM"][:2]
+                    entries_ = []
+                    for row in sheet.lines:
+                        if not row.demo:
+                            continue
+                        ability = r.gauss(0.62, 0.15)
+                        for code in tests:
+                            v = max(0.0, min(1.0, r.gauss(ability, 0.08))) * parts[code]
+                            entries_.append(
+                                assessment.ScoreIn(
+                                    row.learner_id, code, Decimal(str(round(v * 2) / 2))
+                                )
+                            )
+                    if entries_:
+                        await assessment.enter_scores(session, o.id, term.id, entries_)
+                        out.scores += len(entries_)
+    return out

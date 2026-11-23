@@ -59,6 +59,57 @@ async def test_seed_for_browser_run(sm, world, engine):
             series["GOV/2"].id,
             rec.FileIn("PTA and SBMC minutes 2025", "Head teacher's office", year=2025),
         )
+    # Ada teaches Primary 4A Mathematics too, for the markbook walk-through (ADR-032).
+    from syntegra.academic import api as acad
+
+    async with sm() as s, s.begin(), as_(a, a.head, a.school):
+        maths = next(
+            o.id for o in await acad.class_offerings(s, a.p4a.id) if o.subject.code == "MTH"
+        )
+        await acad.assign_teacher(s, maths, a.t1.id)
+    # Two pupils in Primary 4A from the start of term, so registers for past days have them.
+    from datetime import date as day
+
+    from syntegra.learners import api as lrn
+    from tests.integration.test_learners import pupil
+    from tests.integration.test_staff import CRYPTO as crypto
+
+    async with sm() as s, s.begin(), as_(a, a.reg, a.school):
+        for given, family, phone in (
+            ("Uchenna", "Ibe", "08036660001"),
+            ("Ngozi", "Amadi", "08036660002"),
+        ):
+            await lrn.register_direct(
+                s,
+                crypto,
+                a.aba.id,
+                pupil(given, family, guardian_name=f"Parent {family}", guardian_phone=phone),
+                lrn.EnrolIn(a.s1.id, "P4", class_id=a.p4a.id, starts_on=day(2026, 9, 14)),
+            )
+    # Primary 4A's other first-term subjects are marked and approved already, so once Ada's
+    # Mathematics is approved in the walk-through the head can publish the report cards.
+    from decimal import Decimal
+
+    from syntegra.assessment import api as ass
+
+    async with sm() as s, s.begin(), as_(a, scope=a.school):
+        term1 = (await acad.get_session(s, a.s1.id)).parts[0]
+        for o in await acad.class_offerings(s, a.p4a.id):
+            if o.kind != "core" or o.subject.code == "MTH":
+                continue
+            sheet = await ass.get_sheet(s, o.id, term1.id)
+            await ass.enter_scores(
+                s,
+                o.id,
+                term1.id,
+                [
+                    ass.ScoreIn(ln.learner_id, part, Decimal(v))
+                    for i, ln in enumerate(sheet.lines)
+                    for part, v in (("CA1", 14 + i), ("CA2", 15), ("EXAM", 41 + 3 * i))
+                ],
+            )
+            await ass.submit(s, o.id, term1.id)
+            await ass.approve(s, o.id, term1.id)
     # Made-up pilot institutions with demonstration learners, for the monitoring walk-through.
     from syntegra.pilot import api as pilot
     from tests.integration.test_pilot import PILOT

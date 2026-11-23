@@ -72,6 +72,8 @@ const mother = async (p) => {
   await p.getByText(/a 6-digit code is on its way/).waitFor();
   await p.getByLabel("6-digit code").fill(latestCode());
   await p.getByRole("button", { name: "Sign in with the code" }).click();
+  await p.getByRole("heading", { name: "My children" }).waitFor(); // a parent's home (ADR-032)
+  await p.getByRole("link", { name: /^Messages/ }).click();
 };
 
 // 1. The registrar gives Adaeze's mother a parent account from Learner 360.

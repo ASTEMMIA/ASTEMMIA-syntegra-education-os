@@ -43,7 +43,7 @@ def test_grading_rules():
     }  # fmt: skip
     assert Policy.from_json(senior.to_json()) == senior
     bad = Policy.from_json({**DEFAULTS["basic"].to_json(), "components": [
-        {"code": "CA1", "name": "Test", "max_score": 30}, {"code": "EXAM", "name": "Exam", "max_score": 60},
+        {"code": "CA1", "name": "Test", "max_score": 30}, {"code": "EXAM", "name": "Exam", "max_score": 60},  # noqa: E501
     ]})  # fmt: skip
     assert check_policy(bad) == ["the parts add up to 100"]
 
@@ -233,7 +233,7 @@ async def test_results_report_cards_and_transcripts(sm, world, friday):
             await ass.enter_scores(s, mth, a.term1.id, [ass.ScoreIn(a.kids[0], "PROJ", Decimal(5))])
         v = await ass.enter_scores(
             s, mth, a.term1.id,
-            [ass.ScoreIn(a.kids[0], "CA1", Decimal("17.5")), ass.ScoreIn(a.kids[0], "CA2", Decimal(16)),
+            [ass.ScoreIn(a.kids[0], "CA1", Decimal("17.5")), ass.ScoreIn(a.kids[0], "CA2", Decimal(16)),  # noqa: E501
              ass.ScoreIn(a.kids[0], "EXAM", None, absent=True)],
         )  # fmt: skip
         assert v.lines[0].total is None or v.missing == 2
@@ -296,10 +296,33 @@ async def test_results_report_cards_and_transcripts(sm, world, friday):
             "head": "Keep it up.",
         }
         assert c["next_term_begins"] == "2027-01-11"
+        # A pupil who joins after the results were approved has no result to report yet.
+    async with sm() as s, s.begin(), as_(a, a.reg, a.school):
+        late = await lrn.register_direct(
+            s,
+            CRYPTO,
+            a.aba.id,
+            pupil("Ebuka", "Late", guardian_phone="08031119999"),
+            lrn.EnrolIn(a.s1.id, "P4", class_id=a.p4a.id, starts_on=date(2026, 11, 16)),
+        )
+    async with sm() as s, s.begin(), as_(a, a.head, a.school):
+        preview = await ass.class_results(s, a.p4a.id, a.term1.id)
+        assert str(late.learner_id) not in {c["learner"]["id"] for c in preview.cards}
         # A correction after publishing: reopen with a reason, change, approve, republish.
         await ass.send_back(s, mth, a.term1.id, "Marking error found on re-check")
     async with sm() as s, s.begin(), as_(a, a.ada, a.school):
         await ass.enter_scores(s, mth, a.term1.id, [ass.ScoreIn(a.kids[0], "EXAM", Decimal(50))])
+        with pytest.raises(ValidationFailed, match="1 learner"):  # the newcomer needs scores too
+            await ass.submit(s, mth, a.term1.id)
+        await ass.enter_scores(
+            s,
+            mth,
+            a.term1.id,
+            [
+                ass.ScoreIn(late.learner_id, p, Decimal(v))
+                for p, v in (("CA1", 10), ("CA2", 11), ("EXAM", 30))
+            ],
+        )
         await ass.submit(s, mth, a.term1.id)
     async with sm() as s, s.begin(), as_(a, a.head, a.school):
         await ass.approve(s, mth, a.term1.id)
@@ -408,7 +431,7 @@ async def test_tertiary_gpa(sm, world, friday):
         for r, (ca, exam) in zip(runs, ((28, 50), (20, 25))):  # 78 -> AA 4.00; 45 -> D 2.25
             sheet = await ass.enter_scores(
                 s, r.id, first.id,
-                [ass.ScoreIn(st.learner_id, "CA", Decimal(ca)), ass.ScoreIn(st.learner_id, "EXAM", Decimal(exam))],
+                [ass.ScoreIn(st.learner_id, "CA", Decimal(ca)), ass.ScoreIn(st.learner_id, "EXAM", Decimal(exam))],  # noqa: E501
             )  # fmt: skip
             assert sheet.rules["group"] == "nbte"
             await ass.submit(s, r.id, first.id)

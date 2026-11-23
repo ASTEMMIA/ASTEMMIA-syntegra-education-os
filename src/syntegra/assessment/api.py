@@ -1123,7 +1123,8 @@ async def _cards(
             continue
         bands_seen = view.rules
         for ln in view.lines:
-            if ln.learner_id not in subjects:
+            # Someone who joined the class after the sheet was approved has no result in it.
+            if ln.learner_id not in subjects or ln.total is None:
                 continue
             subjects[ln.learner_id].append(
                 {

@@ -26,6 +26,10 @@ interface SchoolStat {
   classes: number;
   places: number;
   pupil_teacher_ratio: number | null;
+  attendance_rate: number | null;
+  results: number;
+  average_score: string | null;
+  pass_rate: number | null;
 }
 
 interface AreaStat {
@@ -55,6 +59,13 @@ export interface Overview {
   transfers_waiting: number;
   documents: number;
   messages_7_days: number;
+  attendance_rate: number | null;
+  staff_attendance_rate: number | null;
+  registers_today: number;
+  classes_today: number;
+  results: number;
+  average_score: string | null;
+  pass_rate: number | null;
   by_lga: AreaStat[];
   schools: SchoolStat[];
   not_yet: { area: string; needs: string }[];
@@ -75,6 +86,7 @@ function kind(type: string, count: number): string {
 }
 
 const n = (v: number) => v.toLocaleString("en-NG");
+const pct = (r: number | null) => (r === null ? "—" : `${Math.round(r * 1000) / 10}%`);
 
 function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
   return (
@@ -180,6 +192,17 @@ export function MonitoringPage() {
           value={n(d.admissions_open)}
           note={d.admissions_overdue ? `${n(d.admissions_overdue)} past the 10-day decision date` : "None past the decision date"}
         />
+        <Tile
+          label="Learner attendance, 30 days"
+          value={pct(d.attendance_rate)}
+          note={d.classes_today ? `${n(d.registers_today)} of ${n(d.classes_today)} morning registers taken today` : "No school today"}
+        />
+        <Tile label="Staff attendance, 30 days" value={pct(d.staff_attendance_rate)} />
+        <Tile
+          label="Results approved"
+          value={n(d.results)}
+          note={d.results ? `Average ${d.average_score} · ${pct(d.pass_rate)} passed` : "None approved yet"}
+        />
         <Tile label="Transfers waiting" value={n(d.transfers_waiting)} />
         <Tile label="Records digitised" value={n(d.documents)} note="Documents in the repository" />
         <Tile label="Messages, last 7 days" value={n(d.messages_7_days)} note="Counted only; no content" />
@@ -235,6 +258,9 @@ export function MonitoringPage() {
                 <th className="num">Teachers</th>
                 <th className="num">Per teacher</th>
                 <th className="num">Classes</th>
+                <th className="num">Attendance</th>
+                <th className="num">Average</th>
+                <th className="num">Passed</th>
               </tr>
             </thead>
             <tbody>
@@ -252,6 +278,9 @@ export function MonitoringPage() {
                   <td className="num">{n(s.teachers)}</td>
                   <td className="num">{s.pupil_teacher_ratio ?? "—"}</td>
                   <td className="num">{s.classes ? n(s.classes) : "—"}</td>
+                  <td className="num">{pct(s.attendance_rate)}</td>
+                  <td className="num">{s.average_score ?? "—"}</td>
+                  <td className="num">{pct(s.pass_rate)}</td>
                 </tr>
               ))}
             </tbody>

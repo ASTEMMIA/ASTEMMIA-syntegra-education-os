@@ -16,3 +16,4 @@ BASE=http://127.0.0.1:$PORT SCANS=web/e2e/fixtures SHOTS=${SHOTS:-$WORK/shots}/r
 BASE=http://127.0.0.1:$PORT FIXTURES=web/e2e/fixtures SHOTS=${SHOTS:-$WORK/shots}/school node web/e2e/school.e2e.mjs || { tail -40 "$WORK/server.log"; exit 1; }
 BASE=http://127.0.0.1:$PORT DB=$WORK/e2e.db FIXTURES=web/e2e/fixtures SHOTS=${SHOTS:-$WORK/shots}/messaging node web/e2e/messaging.e2e.mjs || { tail -40 "$WORK/server.log"; exit 1; }
 BASE=http://127.0.0.1:$PORT SHOTS=${SHOTS:-$WORK/shots}/monitoring node web/e2e/monitoring.e2e.mjs || { tail -40 "$WORK/server.log"; exit 1; }
+BASE=http://127.0.0.1:$PORT SHOTS=${SHOTS:-$WORK/shots}/exams node web/e2e/exams.e2e.mjs || { tail -40 "$WORK/server.log"; exit 1; }

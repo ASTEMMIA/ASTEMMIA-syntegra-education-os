@@ -184,14 +184,16 @@ async def import_schools(
     return 0
 
 
-async def pilot(text: str, tenant_code: str, demo_learners: int | None) -> int:
+async def pilot(
+    text: str, tenant_code: str, demo_learners: int | None, activity_days: int | None = None
+) -> int:
     """Register the pilot institutions from the confidential file, and with ``demo_learners``
     fill them with demonstration data (ADR-031)."""
     from syntegra.pilot import api as pilot_api
     from syntegra.platform.crypto import build_field_crypto
 
     settings = get_settings()
-    if demo_learners is not None and settings.env == "prod":
+    if (demo_learners is not None or activity_days is not None) and settings.env == "prod":
         raise SystemExit("demonstration data is never loaded in production (SYNTEGRA_ENV=prod)")
     crypto = build_field_crypto(
         env=settings.env,
@@ -224,6 +226,13 @@ async def pilot(text: str, tenant_code: str, demo_learners: int | None) -> int:
             print(
                 f"demonstration data: {out.learners} learners, {out.teachers} teachers, "
                 f"{out.classes} classes"
+            )
+        if activity_days is not None:
+            act = await pilot_api.load_activity(session, state.id, pilots, days=activity_days)
+            print(
+                f"demonstration activity: {act.registers} registers ({act.marks} marks) on "
+                f"{len(act.days)} school days, {act.staff_days} staff days, "
+                f"{act.scores} test scores"
             )
     await engine.dispose()
     return 0
@@ -515,6 +524,13 @@ def main() -> None:
     pd.add_argument("csv_path")
     pd.add_argument("--tenant-code", default="NG-AB")
     pd.add_argument("--learners", type=int, default=2500)
+    pa = sub.add_parser(
+        "pilot-activity",
+        help="demonstration registers, staff sign-ins and test scores for recent school days",
+    )
+    pa.add_argument("csv_path")
+    pa.add_argument("--tenant-code", default="NG-AB")
+    pa.add_argument("--days", type=int, default=10)
     em = sub.add_parser("send-email", help="deliver queued email (dev: printed)")
     em.add_argument("--once", action="store_true")
     et = sub.add_parser("email-test", help="send one test message through the configured sender")
@@ -573,15 +589,16 @@ def main() -> None:
                 import_schools(text, csv_file.name, args.tenant_code, args.board_code, args.commit)
             )
         )
-    elif args.cmd in ("pilot-load", "pilot-demo"):
+    elif args.cmd in ("pilot-load", "pilot-demo", "pilot-activity"):
         from pathlib import Path
 
         from syntegra.core.errors import DomainError
 
         learners = args.learners if args.cmd == "pilot-demo" else None
+        days = args.days if args.cmd == "pilot-activity" else None
         pilot_text = Path(args.csv_path).read_text(encoding="utf-8-sig")
         try:
-            raise SystemExit(asyncio.run(pilot(pilot_text, args.tenant_code, learners)))
+            raise SystemExit(asyncio.run(pilot(pilot_text, args.tenant_code, learners, days)))
         except DomainError as exc:
             raise SystemExit(
                 f"{exc}\n" + "\n".join((getattr(exc, "next_action", "") or "").split(" | "))

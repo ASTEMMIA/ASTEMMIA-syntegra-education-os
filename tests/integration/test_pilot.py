@@ -151,3 +151,29 @@ async def test_demonstration_data_and_monitoring(sm, world, client):
     assert r.status_code == 403
     async with sm() as s:
         assert await verify_all_days(s, a.tenant.id)
+
+
+async def test_demonstration_activity(sm, world, monkeypatch):
+    from datetime import datetime
+
+    from syntegra.attendance import api as attendance
+
+    monkeypatch.setattr(
+        attendance, "local_now", lambda: datetime(2026, 11, 20, 10, 0, tzinfo=attendance.LOCAL)
+    )
+    a = await _world(sm, world)
+    async with sm() as s, s.begin():
+        pilots = await pilot.load_institutions(s, a.tenant.id, PILOT)
+        out = await pilot.load_demo(s, CRYPTO, a.tenant.id, pilots, learners_total=60, seed=3)
+        act = await pilot.load_activity(s, a.tenant.id, pilots, days=3)
+    assert act.days == [date(2026, 11, 18), date(2026, 11, 19), date(2026, 11, 20)]
+    assert act.registers == out.classes * 3 * 2
+    assert (
+        act.marks == sum(x.learners for x in out.schools if x.classes) * 3 * 2
+    )  # everyone in a class, twice a day
+    assert act.staff_days > 0 and act.scores > 0
+    async with sm() as s:
+        with use_context(RequestContext(a.tenant.id, a.tenant.root_scope_node_id, a.sta)):
+            o = await mon.overview(s)
+    assert o.attendance_rate is not None and 0.8 < o.attendance_rate <= 1
+    assert o.registers_today == out.classes and o.results == 0  # tests only, nothing approved
