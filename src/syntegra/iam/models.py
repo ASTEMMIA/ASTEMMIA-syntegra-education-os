@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from syntegra.core.clock import utcnow
 from syntegra.core.ids import uuid7
-from syntegra.platform.db import Audited, Base
+from syntegra.platform.db import Audited, Base, Hash32
 
 
 class AppUser(Base, Audited):
@@ -88,3 +88,47 @@ class AccessGrant(Base, Audited):
     granted_by: Mapped[uuid.UUID | None]
     created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
     revoked_at: Mapped[datetime | None]
+
+
+class AuthSession(Base, Audited):
+    """A signed-in session: the family that every rotated refresh token belongs to (§8.3)."""
+
+    __tablename__ = "auth_session"
+    __audit_entity__ = "auth_session"
+    __table_args__ = (Index(None, "tenant_id", "user_id"), {"schema": "iam"})
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("iam.app_user.id"), nullable=False)
+    method: Mapped[str] = mapped_column(String(16), nullable=False)  # dev | oidc
+    amr: Mapped[str] = mapped_column(String(64), nullable=False)  # space-separated (RFC 8176)
+    created_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
+    absolute_expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    revoked_at: Mapped[datetime | None]
+    revoke_reason: Mapped[str | None] = mapped_column(String(32))
+    ip: Mapped[str | None] = mapped_column(String(45))
+    user_agent: Mapped[str | None] = mapped_column(String(255))
+
+    def audit_scope_node_id(self) -> uuid.UUID | None:
+        return None
+
+
+class RefreshToken(Base, Audited):
+    """One link in a session's rotation chain. Only the SHA-256 of the token is stored."""
+
+    __tablename__ = "refresh_token"
+    __audit_entity__ = "refresh_token"
+    __audit_exclude__ = frozenset({"token_hash"})
+    __table_args__ = (Index(None, "tenant_id", "session_id"), {"schema": "iam"})
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("iam.auth_session.id"), nullable=False)
+    token_hash: Mapped[bytes] = mapped_column(Hash32(), nullable=False, unique=True)
+    issued_at: Mapped[datetime] = mapped_column(nullable=False, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    used_at: Mapped[datetime | None]
+    replaced_by_id: Mapped[uuid.UUID | None]
+
+    def audit_scope_node_id(self) -> uuid.UUID | None:
+        return None

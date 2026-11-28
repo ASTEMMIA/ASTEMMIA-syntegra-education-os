@@ -5,6 +5,7 @@ import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 
+import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -15,6 +16,8 @@ from syntegra.governance import api as governance
 from syntegra.governance.domain import GovernanceLevel, Ownership
 from syntegra.iam import api as iam
 from syntegra.platform.db import Base, make_engine, make_sessionmaker
+from syntegra.platform.settings import Settings
+from syntegra.web.app import create_app
 
 # Set SYNTEGRA_TEST_DATABASE_URL=mysql+asyncmy://user:pass@host:3306/ops to run the whole
 # suite against MySQL (schema created by `alembic upgrade head`). Default: SQLite per test.
@@ -172,3 +175,11 @@ async def world(sm) -> World:
         b.root_scope_node_id,
         **users,
     )
+
+
+@pytest.fixture
+async def client(engine, sm, world):
+    app = create_app(Settings(env="test", database_url="sqlite+aiosqlite://"))
+    app.state.engine, app.state.sessionmaker = engine, sm
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        yield c

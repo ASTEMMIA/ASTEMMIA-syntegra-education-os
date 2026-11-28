@@ -1,27 +1,23 @@
 import uuid
 
-import httpx
-import pytest
-
-from syntegra.platform.settings import Settings
-from syntegra.web.app import create_app
-
-
-@pytest.fixture
-async def client(engine, sm, world):
-    app = create_app(Settings(env="test", database_url="sqlite+aiosqlite://"))
-    app.state.engine, app.state.sessionmaker = engine, sm
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
-        yield c
+ACCOUNTS = {
+    "padm": ("SYNTEGRA", "admin@syntegra.test"),
+    "state_officer": ("NG-AB-MOE", "officer@abia.test"),
+    "head_a": ("INS-NG-000101", "head@gcu.test"),
+    "teacher_a": ("INS-NG-000101", "teacher@gcu.test"),
+    "head_b": ("INS-NG-000102", "head@academy.test"),
+}
 
 
-def as_(user, tenant, scope, **extra):
-    return {
-        "X-Dev-User-Id": str(user),
-        "X-Tenant-Id": str(tenant),
-        "X-Scope-Node-Id": str(scope),
-        **extra,
-    }
+async def as_(client, who, scope=None, **extra):
+    """Sign in through the dev login and return headers for an authenticated request."""
+    tenant_code, login = ACCOUNTS[who]
+    r = await client.post("/v1/auth/dev-login", json={"tenant_code": tenant_code, "login": login})
+    assert r.status_code == 200, r.text
+    headers = {"Authorization": f"Bearer {r.json()['access_token']}", **extra}
+    if scope is not None:
+        headers["X-Scope-Node-Id"] = str(scope)
+    return headers
 
 
 async def test_health(client):
@@ -30,9 +26,7 @@ async def test_health(client):
 
 
 async def test_me_shows_effective_permissions(client, world):
-    r = await client.get(
-        "/v1/me", headers=as_(world.teacher_a, world.school_a_tenant, world.school_a_campus_1)
-    )
+    r = await client.get("/v1/me", headers=await as_(client, "teacher_a", world.school_a_campus_1))
     assert r.status_code == 200
     body = r.json()
     assert body["permissions_here"]["learner:view"] == "C"
@@ -44,19 +38,15 @@ async def test_unauthenticated_and_foreign_scope_are_rejected(client, world):
     assert r.status_code == 401 and r.headers["content-type"] == "application/problem+json"
     assert r.json()["next_action"]
     # Teacher cannot switch into the sibling campus where they hold no role.
-    r = await client.get(
-        "/v1/me", headers=as_(world.teacher_a, world.school_a_tenant, world.school_a_campus_2)
-    )
-    assert r.status_code == 401
+    r = await client.get("/v1/me", headers=await as_(client, "teacher_a", world.school_a_campus_2))
+    assert r.status_code == 403
     # Head of school A cannot claim school B's scope.
-    r = await client.get(
-        "/v1/me", headers=as_(world.head_a, world.school_a_tenant, world.school_b_root)
-    )
+    r = await client.get("/v1/me", headers=await as_(client, "head_a", world.school_b_root))
     assert r.status_code == 403
 
 
 async def test_create_scope_node_with_idempotency(client, world):
-    h = as_(world.head_b, world.school_b_tenant, world.school_b_root)
+    h = await as_(client, "head_b", world.school_b_root)
     body = {
         "parent_id": str(world.school_b_root),
         "level": 8,
@@ -85,9 +75,7 @@ async def test_create_scope_node_with_idempotency(client, world):
 
 
 async def test_teacher_cannot_manage_scopes(client, world):
-    h = as_(
-        world.teacher_a, world.school_a_tenant, world.school_a_campus_1, **{"Idempotency-Key": "k1"}
-    )
+    h = await as_(client, "teacher_a", world.school_a_campus_1, **{"Idempotency-Key": "k1"})
     body = {
         "parent_id": str(world.school_a_campus_1),
         "level": 9,
@@ -100,13 +88,13 @@ async def test_teacher_cannot_manage_scopes(client, world):
 
 
 async def test_cannot_read_scope_outside_subtree(client, world):
-    h = as_(world.head_b, world.school_b_tenant, world.school_b_root)
+    h = await as_(client, "head_b", world.school_b_root)
     r = await client.get(f"/v1/scope-nodes/{world.school_a_root}", headers=h)
     assert r.status_code == 404  # finding a record never grants reading it
 
 
 async def test_state_officer_creates_institution_tenant(client, world):
-    h = as_(world.state_officer, world.abia_tenant, world.abia_root, **{"Idempotency-Key": "t1"})
+    h = await as_(client, "state_officer", world.abia_root, **{"Idempotency-Key": "t1"})
     body = {
         "parent_scope_id": str(world.lgea),
         "code": "INS-NG-000103",
@@ -123,7 +111,7 @@ async def test_state_officer_creates_institution_tenant(client, world):
 
 
 async def test_policy_rule_lifecycle_and_audit(client, world):
-    h = as_(world.state_officer, world.abia_tenant, world.abia_root)
+    h = await as_(client, "state_officer", world.abia_root)
     rule = {
         "owner_scope_id": str(world.abia_root),
         "rule_key": "ATT-INST-02",
@@ -156,10 +144,10 @@ async def test_policy_rule_lifecycle_and_audit(client, world):
 async def test_audit_verify_requires_permission(client, world):
     r = await client.get(
         "/v1/audit/verify",
-        headers=as_(world.teacher_a, world.school_a_tenant, world.school_a_campus_1),
+        headers=await as_(client, "teacher_a", world.school_a_campus_1),
     )
     assert r.status_code == 403
     r = await client.get(
-        "/v1/audit/verify", headers=as_(world.head_a, world.school_a_tenant, world.school_a_root)
+        "/v1/audit/verify", headers=await as_(client, "head_a", world.school_a_root)
     )
     assert r.status_code == 200 and r.json()["intact"] is True and r.json()["events"] > 0

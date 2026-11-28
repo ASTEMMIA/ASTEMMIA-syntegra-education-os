@@ -16,10 +16,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from syntegra.core.context import RequestContext, use_context
-from syntegra.core.errors import Forbidden, PreconditionRequired, Unauthenticated, ValidationFailed
+from syntegra.core.errors import Forbidden, PreconditionRequired, ValidationFailed
 from syntegra.governance import api as governance
 from syntegra.iam import api as iam
-from syntegra.iam.domain import Decision
+from syntegra.iam import auth as iam_auth
+from syntegra.iam.domain import Decision, GrantFacts
 from syntegra.platform.models import IdempotencyRecord
 from syntegra.platform.settings import Settings
 from syntegra.web.auth import Principal, authenticate
@@ -45,25 +46,29 @@ class Uow:
         return decision.require()
 
 
-async def unit_of_work(
-    request: Request, settings: Annotated[Settings, Depends(get_settings)]
-) -> AsyncIterator[Uow]:
+async def unit_of_work(request: Request) -> AsyncIterator[Uow]:
     """Layer 1 of §10.3: resolve user, tenant and active scope into a request context."""
-    principal = authenticate(request, settings)
+    principal = authenticate(request, request.app.state.token_policy)
     sessionmaker = request.app.state.sessionmaker
     async with sessionmaker() as session, session.begin():
+        await iam_auth.check_session(session, principal.claims)
         tenant_root = await governance.tenant_root_scope(session, principal.tenant_id)
-        if not await governance.is_within(session, tenant_root, principal.active_scope_id):
-            raise Forbidden("the active scope is outside your organisation")
         grants = await iam.grants_for(session, principal.user_id)
-        ancestors = await governance.ancestor_ids(session, principal.active_scope_id)
+        if not grants:
+            raise Forbidden(
+                "you have no roles yet", next_action="Ask your administrator for access."
+            )
+        scope_id = principal.requested_scope_id or _default_scope(grants, tenant_root)
+        if not await governance.is_within(session, tenant_root, scope_id):
+            raise Forbidden("the active scope is outside your organisation")
+        ancestors = await governance.ancestor_ids(session, scope_id)
         if not any(g.scope_node_id in ancestors for g in grants):
-            raise Unauthenticated(
+            raise Forbidden(
                 "you have no role at this scope", next_action="Switch to a scope you work in."
             )
         ctx = RequestContext(
             tenant_id=principal.tenant_id,
-            scope_node_id=principal.active_scope_id,
+            scope_node_id=scope_id,
             user_id=principal.user_id,
             ip=request.client.host if request.client else None,
             device_id=request.headers.get("X-Device-Id"),
@@ -71,6 +76,13 @@ async def unit_of_work(
         )
         with use_context(ctx):
             yield Uow(session, ctx, principal)
+
+
+def _default_scope(grants: list[GrantFacts], tenant_root: uuid.UUID) -> uuid.UUID:
+    """Without X-Scope-Node-Id: the tenant root if the user has a grant there, otherwise the
+    first grant's scope (stable order), so a one-role user never has to choose."""
+    scopes = sorted({g.scope_node_id for g in grants})
+    return tenant_root if tenant_root in scopes else scopes[0]
 
 
 UowDep = Annotated[Uow, Depends(unit_of_work)]
