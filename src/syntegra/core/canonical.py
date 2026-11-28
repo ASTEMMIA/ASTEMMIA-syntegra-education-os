@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import json
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
 from typing import Any
@@ -17,6 +17,8 @@ def _default(value: Any) -> Any:
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, time):  # a time of day, e.g. when staff signed in (ADR-032)
         return value.isoformat()
     if isinstance(value, Decimal):
         return str(value)

@@ -29,6 +29,12 @@ ROLES: dict[str, str] = {
     "REC": "Records officer",
     # Phase 0 extension (ADR-004): the programme administrator at the global level (§2 level 1).
     "PADM": "Platform administrator",
+    # HRMS (ADR-024): runs staff records and postings for an employer (e.g. ASUBEB HR).
+    "HRO": "HR officer",
+    # Records (ADR-027): the State Archives oversee the permanent repository with the State
+    # Government; capture operators scan in-house or for a contractor, into assigned batches.
+    "ARCH": "State Archives officer",
+    "CAPT": "Capture operator (in-house or contractor)",
 }
 
 MATRIX_COLUMNS = (
@@ -88,6 +94,75 @@ PERMISSIONS: dict[str, PermissionDef] = {
         PermissionDef("person:create", "Person 360 — register", T.CONFIDENTIAL),
         PermissionDef("person:edit", "Person 360 — edit", T.CONFIDENTIAL),
         PermissionDef("person:merge", "Person 360 — resolve duplicates and merge", T.CONFIDENTIAL),
+        # Staff 360 (hr, ADR-024)
+        PermissionDef("staff:view", "Staff 360 — view (nominal roll)", T.CONFIDENTIAL),
+        PermissionDef("staff:edit", "Staff 360 — appoint, edit, exit", T.CONFIDENTIAL),
+        PermissionDef(
+            "staff:post", "Staff postings — request and decide (four-eyes)", T.CONFIDENTIAL
+        ),
+        # Appraisal (hr, ADR-025)
+        PermissionDef("appraisal:view", "Appraisal — view", T.CONFIDENTIAL),
+        PermissionDef(
+            "appraisal:conduct", "Appraisal — appraise and observe lessons", T.CONFIDENTIAL
+        ),
+        PermissionDef("appraisal:countersign", "Appraisal — countersign or return", T.CONFIDENTIAL),
+        # Continuous professional development (hr, ADR-026)
+        PermissionDef("cpd:view", "CPD — view records and compliance", T.INTERNAL),
+        PermissionDef(
+            "cpd:manage", "CPD — programmes, nominations, verification, plans", T.INTERNAL
+        ),
+        # Document and records management (rec, ADR-027). Reading is by classification tier.
+        PermissionDef("document:view_internal", "Documents — read Internal", T.INTERNAL),
+        PermissionDef(
+            "document:view_confidential", "Documents — read Confidential", T.CONFIDENTIAL
+        ),
+        PermissionDef("document:view_restricted", "Documents — read Restricted", T.RESTRICTED),
+        PermissionDef("document:view_special", "Documents — read Special", T.SPECIAL),
+        PermissionDef("document:capture", "Documents — scan and upload", T.CONFIDENTIAL),
+        PermissionDef("file:manage", "Paper files — open, track, close", T.INTERNAL),
+        PermissionDef(
+            "records:admin", "Records — file plan, batches, holds, disposition", T.CONFIDENTIAL
+        ),
+        PermissionDef(
+            "records:oversight", "Records — State oversight of the repository", T.SPECIAL
+        ),
+        # Learner registration and classes (learners, academic; ADR-029)
+        PermissionDef(
+            "learner:register",
+            "Learners — applications, enrolment, class placement, transfers",
+            T.CONFIDENTIAL,
+        ),
+        PermissionDef("admission:decide", "Admissions — offer, waitlist or reject", T.CONFIDENTIAL),
+        PermissionDef(
+            "class:manage", "Classes — rooms, arms, class teachers, subjects", T.INTERNAL
+        ),
+        PermissionDef("calendar:manage", "Academic calendar — sessions and terms", T.INTERNAL),
+        # Attendance and examinations (ADR-032)
+        PermissionDef(
+            "attendance:amend", "Attendance — correct a register after the day", T.CONFIDENTIAL
+        ),
+        PermissionDef("staff_attendance:record", "Staff attendance — record", T.CONFIDENTIAL),
+        PermissionDef(
+            "results:approve", "Results — approve, return, publish report cards", T.CONFIDENTIAL
+        ),
+        PermissionDef("exam:schedule", "Examination timetable — set", T.INTERNAL),
+        PermissionDef("assessment:configure", "Assessment — set the parts and grading", T.INTERNAL),
+        PermissionDef("transcript:issue", "Transcripts — issue", T.CONFIDENTIAL),
+        # Government Monitoring Dashboard (ADR-031): counts only, no personal details
+        PermissionDef("monitoring:view", "Monitoring dashboard — view", T.INTERNAL),
+        # Messaging (msg, ADR-030)
+        PermissionDef("message:moderate", "Messaging — handle reported messages", T.CONFIDENTIAL),
+        PermissionDef(
+            "message:oversee", "Messaging — review a conversation, with a reason", T.CONFIDENTIAL
+        ),
+        PermissionDef(
+            "message:oversee_protected",
+            "Messaging — review a protected (pastoral, HR) conversation",
+            T.RESTRICTED,
+        ),
+        PermissionDef(
+            "teaching:assign", "Teaching — assign subject teachers and lecturers", T.INTERNAL
+        ),
     ]
 }
 
@@ -129,25 +204,159 @@ _EXTENSIONS: dict[str, dict[str, Cell]] = {
         "audit:view": Cell.YES,
         "policy:publish": Cell.YES,
     },
-    "FED": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
-    "STA": {"tenant:manage": Cell.YES, "scope_node:manage": Cell.YES},
+    "FED": {
+        "tenant:manage": Cell.YES,
+        "scope_node:manage": Cell.YES,
+        "monitoring:view": Cell.YES,
+    },
+    "STA": {
+        "assessment:configure": Cell.YES,
+        "monitoring:view": Cell.YES,
+        "message:oversee": Cell.YES,
+        "calendar:manage": Cell.YES,
+        "tenant:manage": Cell.YES,
+        "scope_node:manage": Cell.YES,
+        "staff:view": Cell.YES,
+        "staff:post": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:countersign": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,
+        "document:view_special": Cell.YES,
+        "records:oversight": Cell.YES,
+    },
+    "ARCH": {
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,
+        "document:view_special": Cell.YES,
+        "records:oversight": Cell.YES,
+        "records:admin": Cell.YES,
+        "disposal:approve": Cell.YES,
+        "audit:view": Cell.YES,
+    },
+    "CAPT": {"document:capture": Cell.YES},
+    "CURA": {"assessment:configure": Cell.YES},
+    "REC": {
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.PARTIAL,
+        "document:capture": Cell.YES,
+        "file:manage": Cell.YES,
+        "records:admin": Cell.YES,
+    },
+    "HRO": {
+        "staff_attendance:record": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:countersign": Cell.YES,
+        "staff:view": Cell.YES,
+        "staff:edit": Cell.YES,
+        "staff:post": Cell.YES,
+        "person:view": Cell.YES,
+        "person:create": Cell.YES,
+        "person:edit": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,  # HR casework
+    },
     "IADM": {
+        "attendance:amend": Cell.YES,
+        "staff_attendance:record": Cell.YES,
+        "results:approve": Cell.YES,
+        "exam:schedule": Cell.YES,
+        "transcript:issue": Cell.YES,
+        "monitoring:view": Cell.YES,
+        "message:moderate": Cell.YES,
+        "learner:register": Cell.YES,
+        "admission:decide": Cell.PARTIAL,
+        "class:manage": Cell.YES,
+        "calendar:manage": Cell.YES,  # a tertiary institution sets its own semesters
+        "teaching:assign": Cell.YES,
         "scope_node:manage": Cell.YES,
         "person:view": Cell.YES,
         "person:create": Cell.YES,
         "person:edit": Cell.YES,
         "person:merge": Cell.YES,
+        "staff:view": Cell.YES,
+        "staff:edit": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:conduct": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:capture": Cell.YES,
+        "file:manage": Cell.YES,
+        "records:admin": Cell.YES,
     },
-    "HEAD": {"scope_node:manage": Cell.YES, "person:view": Cell.YES},
+    "HEAD": {
+        "attendance:amend": Cell.YES,
+        "staff_attendance:record": Cell.YES,
+        "results:approve": Cell.YES,
+        "exam:schedule": Cell.YES,
+        "transcript:issue": Cell.YES,
+        "monitoring:view": Cell.YES,
+        "message:moderate": Cell.YES,
+        "message:oversee": Cell.YES,
+        "learner:register": Cell.YES,
+        "admission:decide": Cell.YES,
+        "class:manage": Cell.YES,
+        "teaching:assign": Cell.YES,
+        "scope_node:manage": Cell.YES,
+        "person:view": Cell.YES,
+        "staff:view": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:conduct": Cell.YES,
+        "cpd:view": Cell.YES,
+        "cpd:manage": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.PARTIAL,
+        "file:manage": Cell.YES,
+        "records:admin": Cell.YES,
+    },
+    # Inspectors observe lessons (§29) and may appraise where the state assigns them.
+    "INSP": {
+        "monitoring:view": Cell.YES,
+        "appraisal:view": Cell.YES,
+        "appraisal:conduct": Cell.YES,
+        "cpd:view": Cell.YES,
+        "document:view_internal": Cell.YES,
+    },
     # Registrar is the Person 360 data steward (§4 "Registry officer", §16.1).
     "REG": {
+        "transcript:issue": Cell.YES,
+        "learner:register": Cell.YES,
         "person:view": Cell.YES,
         "person:create": Cell.YES,
         "person:edit": Cell.YES,
         "person:merge": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:capture": Cell.YES,
     },
-    "TCH": {"person:view": Cell.OWN},
-    "DPO": {"person:view": Cell.YES},  # subject access requests (§8.4)
+    "TCH": {"person:view": Cell.OWN, "document:view_internal": Cell.YES},
+    "DPO": {  # subject access requests (§8.4)
+        "message:oversee": Cell.YES,
+        "message:oversee_protected": Cell.YES,
+        "person:view": Cell.YES,
+        "document:view_internal": Cell.YES,
+        "document:view_confidential": Cell.YES,
+        "document:view_restricted": Cell.YES,
+    },
+    "DSL": {
+        "document:view_restricted": Cell.YES,
+        "document:view_special": Cell.YES,
+        "message:moderate": Cell.YES,
+        "message:oversee": Cell.YES,
+        "message:oversee_protected": Cell.YES,
+    },
+    "SENCO": {"document:view_restricted": Cell.PARTIAL},
 }
 
 

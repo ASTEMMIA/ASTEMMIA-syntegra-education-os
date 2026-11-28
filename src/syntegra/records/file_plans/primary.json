@@ -1,0 +1,470 @@
+{
+ "plan": "primary",
+ "title": "Model file plan for primary schools (ECCDE, primary and adult centres)",
+ "version": 1,
+ "note": "Digital copies are kept permanently in the state repository. The paper rule applies only to the original, after verified digitisation.",
+ "functions": [
+  {
+   "code": "GOV",
+   "name": "Governance and administration",
+   "series": [
+    {
+     "code": "GOV/1",
+     "title": "Government policies, circulars and directives",
+     "activity": "Receiving and acting on instructions",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "GOV/2",
+     "title": "Management committee and PTA minutes",
+     "activity": "Meetings of governing committees",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": true
+    },
+    {
+     "code": "GOV/3",
+     "title": "Inspection and quality assurance reports",
+     "activity": "External evaluation",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "GOV/4",
+     "title": "General correspondence",
+     "activity": "Letters in and out",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "GOV/5",
+     "title": "Returns and statistics (school census)",
+     "activity": "Reporting to the state",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "GOV/6",
+     "title": "Log book and visitors' book",
+     "activity": "Daily record of the school",
+     "numbering": "single",
+     "classification": "internal",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    }
+   ]
+  },
+  {
+   "code": "LRN",
+   "name": "Learners",
+   "series": [
+    {
+     "code": "LRN/1",
+     "title": "Admission and withdrawal register",
+     "activity": "Admitting and leaving",
+     "numbering": "single",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "LRN/2",
+     "title": "Learner personal files",
+     "activity": "One file per learner",
+     "numbering": "self",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "LRN/3",
+     "title": "Attendance registers",
+     "activity": "Daily attendance",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "LRN/4",
+     "title": "Assessment records and result broadsheets",
+     "activity": "Continuous assessment and examinations",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": true
+    },
+    {
+     "code": "LRN/5",
+     "title": "Transfer and leaving certificates",
+     "activity": "Learners moving or leaving",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 10,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "LRN/6",
+     "title": "Learner discipline",
+     "activity": "Conduct cases",
+     "numbering": "self",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "LRN/7",
+     "title": "Health, SEND and medical records",
+     "activity": "Health and special needs",
+     "numbering": "self",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "LRN/8",
+     "title": "Safeguarding and child protection",
+     "activity": "Concerns and referrals",
+     "numbering": "self",
+     "classification": "special",
+     "paper": {
+      "retain_years": 25,
+      "then": "destroy"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "STF",
+   "name": "Staff",
+   "series": [
+    {
+     "code": "STF/1",
+     "title": "Staff personal files",
+     "activity": "One file per member of staff",
+     "numbering": "self",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 6,
+      "then": "transfer_archives"
+     },
+     "vital": true
+    },
+    {
+     "code": "STF/2",
+     "title": "Staff discipline and casework",
+     "activity": "Discipline, grievance and capability",
+     "numbering": "self",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "STF/3",
+     "title": "Staff attendance and movement book",
+     "activity": "Daily staff attendance",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "STF/4",
+     "title": "Appraisal and professional development",
+     "activity": "Performance and CPD",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "STF/5",
+     "title": "Postings, transfers and staffing",
+     "activity": "Staff deployment",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "CUR",
+   "name": "Teaching and learning",
+   "series": [
+    {
+     "code": "CUR/1",
+     "title": "Schemes of work and lesson notes",
+     "activity": "Lesson planning",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 3,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "CUR/2",
+     "title": "Timetables and calendars",
+     "activity": "Organising teaching",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 3,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "CUR/3",
+     "title": "Examination papers and marking schemes",
+     "activity": "Setting and marking examinations",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 3,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "CUR/4",
+     "title": "Curriculum and syllabuses",
+     "activity": "What is taught",
+     "numbering": "annual",
+     "classification": "public",
+     "paper": {
+      "retain_years": 6,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "FIN",
+   "name": "Finance",
+   "series": [
+    {
+     "code": "FIN/1",
+     "title": "Budgets, grants and subventions",
+     "activity": "Planning and receiving funds",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "FIN/2",
+     "title": "Fees, levies and receipts",
+     "activity": "Money received",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "FIN/3",
+     "title": "Payment vouchers and cash book",
+     "activity": "Money spent",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "FIN/4",
+     "title": "Audit reports",
+     "activity": "Internal and external audit",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "EST",
+   "name": "Estates and assets",
+   "series": [
+    {
+     "code": "EST/1",
+     "title": "Land titles, surveys and building plans",
+     "activity": "Owning and building",
+     "numbering": "single",
+     "classification": "internal",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "EST/2",
+     "title": "Asset and inventory registers",
+     "activity": "Furniture, equipment and books",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "EST/3",
+     "title": "Maintenance and works",
+     "activity": "Repairs and projects",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "EST/4",
+     "title": "Health, safety and incidents",
+     "activity": "Accidents and emergencies",
+     "numbering": "annual",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 25,
+      "then": "destroy"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "PRI",
+   "name": "Primary education",
+   "series": [
+    {
+     "code": "PRI/1",
+     "title": "School-Based Management Committee (SBMC)",
+     "activity": "Community participation",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "PRI/2",
+     "title": "UBE intervention and SUBEB returns",
+     "activity": "Universal Basic Education funding and reporting",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "PRI/3",
+     "title": "First School Leaving Certificate",
+     "activity": "Completion of primary school",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "PRI/4",
+     "title": "School feeding programme",
+     "activity": "Home-grown school feeding",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    }
+   ]
+  }
+ ]
+}

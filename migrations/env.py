@@ -10,9 +10,17 @@ import asyncio
 from alembic import context
 from sqlalchemy.engine import Connection
 
+import syntegra.academic.models
+import syntegra.assessment.models
+import syntegra.attendance.models
 import syntegra.governance.models
+import syntegra.hr.models
 import syntegra.iam.models
-import syntegra.mdm.models  # noqa: F401
+import syntegra.institutions.models
+import syntegra.learners.models
+import syntegra.mdm.models
+import syntegra.messaging.models
+import syntegra.records.models  # noqa: F401
 from syntegra.platform.db import SCHEMAS, Base, make_engine
 from syntegra.platform.settings import get_settings
 

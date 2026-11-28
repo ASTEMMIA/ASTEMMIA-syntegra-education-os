@@ -9,3 +9,6 @@ htmlcov/
 *.db
 .env
 .import_linter_cache/
+# The pilot institution list is confidential until approved (ADR-031): supplied at deployment.
+deploy/pilot/*.csv
+!deploy/pilot/pilot-institutions.example.csv

@@ -225,6 +225,24 @@ CATALOGUE: dict[str, WorkflowDefinition] = {
             _s("review_redact"),
             _s("respond", terminal=True),  # statutory SLA configured per tenant regime (§8.4)
         ),
+        # CEDA §22 "Institution registration": application → desk review → site inspection →
+        # decision → licence → Institution 360 active. Used for private providers.
+        WorkflowDefinition(
+            "institution_registration",
+            1,
+            (
+                _s("submitted"),
+                _s("under_review", (10, WD), rule="role:STA@regulator"),
+                _s("site_inspection", (20, WD), rule="role:INSP@regulator"),
+                _s("approved", terminal=True),
+                _s("rejected", terminal=True),
+            ),
+            {
+                "submitted": frozenset({"under_review", "rejected"}),
+                "under_review": frozenset({"site_inspection", "rejected"}),
+                "site_inspection": frozenset({"approved", "rejected"}),
+            },
+        ),
         linear(
             "records_disposal",
             1,

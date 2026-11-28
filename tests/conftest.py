@@ -9,9 +9,17 @@ import httpx
 import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+import syntegra.academic.models
+import syntegra.assessment.models
+import syntegra.attendance.models
 import syntegra.governance.models
+import syntegra.hr.models
 import syntegra.iam.models
-import syntegra.mdm.models  # noqa: F401
+import syntegra.institutions.models
+import syntegra.learners.models
+import syntegra.mdm.models
+import syntegra.messaging.models
+import syntegra.records.models  # noqa: F401
 from syntegra.core.context import RequestContext, use_context
 from syntegra.governance import api as governance
 from syntegra.governance.domain import GovernanceLevel, Ownership
@@ -183,8 +191,13 @@ async def world(sm) -> World:
 
 
 @pytest.fixture
-async def client(engine, sm, world):
+def app(engine, sm):
     app = create_app(Settings(env="test", database_url="sqlite+aiosqlite://"))
     app.state.engine, app.state.sessionmaker = engine, sm
+    return app
+
+
+@pytest.fixture
+async def client(app, world):
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         yield c

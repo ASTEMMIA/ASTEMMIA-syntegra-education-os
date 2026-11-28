@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "country": {
+    "code": "NG",
+    "name": "Nigeria",
+    "time_zone": "Africa/Lagos",
+    "label": "Federal Ministry of Education",
+    "address": {
+      "postcode_label": "postcode",
+      "postcode_pattern": "^[0-9]{6}$",
+      "postcode_example": "440001"
+    }
+  },
+  "jurisdiction": {
+    "code": "NG-AB",
+    "name": "Abia State",
+    "label": "State"
+  },
+  "areas": [
+    "Aba North",
+    "Aba South",
+    "Arochukwu",
+    "Bende",
+    "Ikwuano",
+    "Isiala Ngwa North",
+    "Isiala Ngwa South",
+    "Isuikwuato",
+    "Obi Ngwa",
+    "Ohafia",
+    "Osisioma",
+    "Ugwunagbo",
+    "Ukwa East",
+    "Ukwa West",
+    "Umuahia North",
+    "Umuahia South",
+    "Umu Nneochi"
+  ],
+  "address_required": [
+    "address_line1",
+    "town",
+    "postcode"
+  ],
+  "bodies": [
+    {
+      "code": "ASUBEB",
+      "name": "Abia State Universal Basic Education Board",
+      "label": "Board",
+      "registers": [
+        "eccde",
+        "primary",
+        "jss",
+        "sss"
+      ],
+      "regulates_private": [
+        "eccde",
+        "primary",
+        "jss",
+        "sss"
+      ],
+      "units": {
+        "label": "LGEA",
+        "code_prefix": "LGEA",
+        "name_suffix": " LGEA",
+        "names": [
+          "Aba North",
+          "Aba South",
+          "Arochukwu",
+          "Bende",
+          "Ikwuano",
+          "Isiala Ngwa North",
+          "Isiala Ngwa South",
+          "Isuikwuato",
+          "Obi Ngwa",
+          "Ohafia",
+          "Osisioma",
+          "Ugwunagbo",
+          "Ukwa East",
+          "Ukwa West",
+          "Umuahia North",
+          "Umuahia South",
+          "Umu Nneochi"
+        ]
+      }
+    },
+    {
+      "code": "MIN-TERTIARY-EDUCATION",
+      "name": "Abia State Ministry of Tertiary Education",
+      "label": "Ministry",
+      "registers": [
+        "tvet",
+        "nce",
+        "nd",
+        "hnd",
+        "degree",
+        "postgraduate"
+      ]
+    },
+    {
+      "code": "ABIA-SAME",
+      "name": "Abia State Agency for Mass Literacy, Adult and Non-Formal Education",
+      "label": "Agency",
+      "registers": [
+        "adult"
+      ]
+    }
+  ],
+  "education_bodies": [
+    "ng",
+    "international"
+  ]
+}

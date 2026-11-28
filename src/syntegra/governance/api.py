@@ -48,6 +48,7 @@ __all__ = [
     "ScopeNodeView",
     "TenantView",
     "ancestor_ids",
+    "apply_structure",
     "create_child_tenant",
     "create_policy_rule",
     "create_root_tenant",
@@ -56,9 +57,11 @@ __all__ = [
     "get_tenant",
     "is_within",
     "list_children",
+    "lowest_common_ancestor",
     "policy_rule_owner",
     "publish_policy_rule",
     "resolve_config",
+    "scope_node_by_code",
     "set_config",
     "subtree_of",
     "tenant_by_code",
@@ -85,10 +88,13 @@ class ScopeNodeView:
     code: str
     name: str
     path: str
+    local_label: str | None = None
 
 
 def _node_view(n: ScopeNode) -> ScopeNodeView:
-    return ScopeNodeView(n.id, n.tenant_id, n.parent_id, n.level, n.code, n.name, n.path)
+    return ScopeNodeView(
+        n.id, n.tenant_id, n.parent_id, n.level, n.code, n.name, n.path, n.local_label
+    )
 
 
 def _actor() -> uuid.UUID | None:
@@ -153,6 +159,27 @@ async def get_tenant(session: AsyncSession, tenant_id: uuid.UUID) -> TenantView:
 async def ancestor_ids(session: AsyncSession, node_id: uuid.UUID) -> set[uuid.UUID]:
     """The node itself and every ancestor, across tenant boundaries."""
     return {r.ancestor_id for r in await _ancestry(session, node_id)}
+
+
+async def scope_node_by_code(
+    session: AsyncSession, tenant_id: uuid.UUID, code: str
+) -> ScopeNodeView | None:
+    node = (
+        await session.execute(
+            select(ScopeNode).where(ScopeNode.tenant_id == tenant_id, ScopeNode.code == code)
+        )
+    ).scalar_one_or_none()
+    return _node_view(node) if node else None
+
+
+async def lowest_common_ancestor(session: AsyncSession, a: uuid.UUID, b: uuid.UUID) -> uuid.UUID:
+    """The deepest scope that contains both nodes, e.g. the LGEA of two schools in it."""
+    a_rows = {r.ancestor_id: r.depth for r in await _ancestry(session, a)}
+    b_ids = {r.ancestor_id for r in await _ancestry(session, b)}
+    shared = [(depth, anc) for anc, depth in a_rows.items() if anc in b_ids]
+    if not shared:
+        raise NotFound("these scopes have no common ancestor")
+    return min(shared)[1]
 
 
 async def is_within(session: AsyncSession, ancestor_id: uuid.UUID, node_id: uuid.UUID) -> bool:
@@ -629,3 +656,130 @@ async def resolve_config(
 
     row = await _resolve(session, scope_node_id, key, on or today())
     return None if row is None else row.value
+
+
+# --------------------------------------------------------------------------- structure (P4)
+
+
+async def apply_structure(
+    session: AsyncSession,
+    structure: Any,
+    *,
+    platform_scope_id: uuid.UUID,
+    residency_region: str,
+) -> tuple[TenantView, dict[str, uuid.UUID], list[str]]:
+    """Build a jurisdiction from its structure file. Idempotent: existing items are kept.
+
+    Returns the jurisdiction tenant, the scope id of each body by code, and what was created.
+    """
+    from syntegra.core.context import RequestContext, use_context
+    from syntegra.governance.structure import Structure
+
+    st: Structure = structure
+    created: list[str] = []
+    country = await tenant_by_code(session, st.country.code)
+    if country is None:
+        country = await create_child_tenant(
+            session,
+            parent_scope_id=platform_scope_id,
+            code=st.country.code,
+            name=st.country.name,
+            level=GovernanceLevel.COUNTRY,
+            country=st.country.code,
+            residency_region=residency_region,
+            time_zone=st.country.time_zone,
+            local_label=st.country.label,
+        )
+        created.append(st.country.name)
+    tenant = country
+    if st.jurisdiction is not None:
+        j = st.jurisdiction
+        found = await tenant_by_code(session, j.code)
+        if found is None:
+            found = await create_child_tenant(
+                session,
+                parent_scope_id=country.root_scope_node_id,
+                code=j.code,
+                name=j.name,
+                level=GovernanceLevel.REGION,
+                country=st.country.code,
+                residency_region=country.residency_region,
+                time_zone=j.time_zone or st.country.time_zone,
+                local_label=j.label,
+            )
+            created.append(j.name)
+        tenant = found
+
+    bodies: dict[str, uuid.UUID] = {}
+    with use_context(
+        RequestContext(
+            tenant.id, tenant.root_scope_node_id, None, system=True, purpose="apply-structure"
+        )
+    ):
+
+        async def node(
+            parent: uuid.UUID, level: GovernanceLevel, code: str, name: str, label: str
+        ) -> uuid.UUID:
+            existing = await scope_node_by_code(session, tenant.id, code)
+            if existing is not None:
+                return existing.id
+            made = await create_scope_node(
+                session, parent_id=parent, level=level, code=code, name=name, local_label=label
+            )
+            created.append(code)
+            return made.id
+
+        address_rules = {
+            "postcode_label": st.country.address.postcode_label,
+            "postcode_pattern": st.country.address.postcode_pattern,
+            "postcode_example": st.country.address.postcode_example,
+            "required": list(st.address_required),
+            "state": st.jurisdiction.name if st.jurisdiction else None,
+            "country": st.country.name,
+        }
+        root = tenant.root_scope_node_id
+        if await resolve_config(session, root, "address.rules") != address_rules:
+            await set_config(session, scope_node_id=root, key="address.rules", value=address_rules)
+            created.append("address rules")
+        if (
+            st.areas
+            and await resolve_config(session, tenant.root_scope_node_id, "location.areas") is None
+        ):
+            await set_config(
+                session,
+                scope_node_id=tenant.root_scope_node_id,
+                key="location.areas",
+                value=list(st.areas),
+            )
+            created.append("location areas")
+        regulators = [
+            {"body": b.code, "levels": list(b.regulates_private)}
+            for b in st.bodies
+            if b.regulates_private
+        ]
+        if await resolve_config(session, root, "private.registration") != regulators:
+            await set_config(
+                session, scope_node_id=root, key="private.registration", value=regulators
+            )
+            created.append("private registration")
+        for b in st.bodies:
+            body_id = await node(tenant.root_scope_node_id, st.body_level, b.code, b.name, b.label)
+            bodies[b.code] = body_id
+            if b.units is not None:
+                for unit in b.units.names:
+                    await node(
+                        body_id,
+                        st.unit_level,
+                        b.units.code_for(unit),
+                        unit + b.units.name_suffix,
+                        b.units.label,
+                    )
+            if (
+                b.registers is not None
+                and await resolve_config(session, body_id, "register.levels") is None
+            ):
+                await set_config(
+                    session, scope_node_id=body_id, key="register.levels", value=list(b.registers)
+                )
+                created.append(f"{b.code} register levels")
+    return tenant, bodies, created

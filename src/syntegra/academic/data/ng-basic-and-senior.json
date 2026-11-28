@@ -1,0 +1,605 @@
+{
+ "code": "NG-SCHOOLS",
+ "name": "Nigerian school curriculum (model)",
+ "authority": "NERDC (Nigerian Educational Research and Development Council)",
+ "note": "A model subject list arranged as the NERDC Basic Education Curriculum (lower, middle and upper basic) and the Senior Secondary Education Curriculum (core subjects plus electives, including a trade/entrepreneurship subject). Periods per week are guides. The State confirms it, or loads the current official version, before adopting it.",
+ "subjects": [
+  {
+   "code": "ENG",
+   "name": "English Studies",
+   "group": "Languages"
+  },
+  {
+   "code": "ENGL",
+   "name": "English Language",
+   "group": "Languages"
+  },
+  {
+   "code": "MTH",
+   "name": "Mathematics",
+   "group": "Mathematics"
+  },
+  {
+   "code": "FMT",
+   "name": "Further Mathematics",
+   "group": "Mathematics"
+  },
+  {
+   "code": "NGL",
+   "name": "Nigerian Language (Igbo in Abia)",
+   "group": "Languages"
+  },
+  {
+   "code": "FRE",
+   "name": "French",
+   "group": "Languages"
+  },
+  {
+   "code": "ARB",
+   "name": "Arabic",
+   "group": "Languages"
+  },
+  {
+   "code": "BST",
+   "name": "Basic Science and Technology",
+   "group": "Sciences"
+  },
+  {
+   "code": "HIS",
+   "name": "History",
+   "group": "Humanities"
+  },
+  {
+   "code": "RNV",
+   "name": "Religion and National Values",
+   "group": "Humanities"
+  },
+  {
+   "code": "CCA",
+   "name": "Cultural and Creative Arts",
+   "group": "Arts"
+  },
+  {
+   "code": "PVS",
+   "name": "Pre-vocational Studies",
+   "group": "Vocational"
+  },
+  {
+   "code": "BUS",
+   "name": "Business Studies",
+   "group": "Business"
+  },
+  {
+   "code": "CIV",
+   "name": "Civic Education",
+   "group": "Humanities"
+  },
+  {
+   "code": "DPR",
+   "name": "Data Processing",
+   "group": "Trade/entrepreneurship"
+  },
+  {
+   "code": "CAT",
+   "name": "Catering Craft Practice",
+   "group": "Trade/entrepreneurship"
+  },
+  {
+   "code": "GMK",
+   "name": "Garment Making",
+   "group": "Trade/entrepreneurship"
+  },
+  {
+   "code": "BIO",
+   "name": "Biology",
+   "group": "Sciences"
+  },
+  {
+   "code": "CHE",
+   "name": "Chemistry",
+   "group": "Sciences"
+  },
+  {
+   "code": "PHY",
+   "name": "Physics",
+   "group": "Sciences"
+  },
+  {
+   "code": "AGR",
+   "name": "Agricultural Science",
+   "group": "Sciences"
+  },
+  {
+   "code": "CMP",
+   "name": "Computer Studies",
+   "group": "Sciences"
+  },
+  {
+   "code": "PHE",
+   "name": "Physical and Health Education",
+   "group": "Sciences"
+  },
+  {
+   "code": "TDR",
+   "name": "Technical Drawing",
+   "group": "Technology"
+  },
+  {
+   "code": "LIT",
+   "name": "Literature in English",
+   "group": "Humanities"
+  },
+  {
+   "code": "GOV",
+   "name": "Government",
+   "group": "Humanities"
+  },
+  {
+   "code": "GEO",
+   "name": "Geography",
+   "group": "Humanities"
+  },
+  {
+   "code": "CRS",
+   "name": "Christian Religious Studies",
+   "group": "Humanities"
+  },
+  {
+   "code": "IRS",
+   "name": "Islamic Religious Studies",
+   "group": "Humanities"
+  },
+  {
+   "code": "VAR",
+   "name": "Visual Arts",
+   "group": "Arts"
+  },
+  {
+   "code": "MUS",
+   "name": "Music",
+   "group": "Arts"
+  },
+  {
+   "code": "ECO",
+   "name": "Economics",
+   "group": "Business"
+  },
+  {
+   "code": "ACC",
+   "name": "Financial Accounting",
+   "group": "Business"
+  },
+  {
+   "code": "COM",
+   "name": "Commerce",
+   "group": "Business"
+  },
+  {
+   "code": "OFP",
+   "name": "Office Practice",
+   "group": "Business"
+  },
+  {
+   "code": "LIT_E",
+   "name": "Literacy (early years)",
+   "group": "Early years"
+  },
+  {
+   "code": "NUM_E",
+   "name": "Numeracy (early years)",
+   "group": "Early years"
+  },
+  {
+   "code": "SCI_E",
+   "name": "Discovering the world (early years)",
+   "group": "Early years"
+  },
+  {
+   "code": "CRE_E",
+   "name": "Creative play (early years)",
+   "group": "Early years"
+  },
+  {
+   "code": "LIT_A",
+   "name": "Basic literacy (adult)",
+   "group": "Adult"
+  },
+  {
+   "code": "NUM_A",
+   "name": "Basic numeracy (adult)",
+   "group": "Adult"
+  },
+  {
+   "code": "LIF_A",
+   "name": "Life skills (adult)",
+   "group": "Adult"
+  }
+ ],
+ "timetable": [
+  {
+   "stage": "Early years (ECCDE)",
+   "years": [
+    "N1",
+    "N2",
+    "KG"
+   ],
+   "subjects": [
+    [
+     "LIT_E",
+     "core",
+     5
+    ],
+    [
+     "NUM_E",
+     "core",
+     5
+    ],
+    [
+     "SCI_E",
+     "core",
+     3
+    ],
+    [
+     "CRE_E",
+     "core",
+     3
+    ],
+    [
+     "NGL",
+     "core",
+     2
+    ]
+   ]
+  },
+  {
+   "stage": "Lower basic (Primary 1-3)",
+   "years": [
+    "P1",
+    "P2",
+    "P3"
+   ],
+   "subjects": [
+    [
+     "ENG",
+     "core",
+     6
+    ],
+    [
+     "MTH",
+     "core",
+     6
+    ],
+    [
+     "NGL",
+     "core",
+     3
+    ],
+    [
+     "BST",
+     "core",
+     4
+    ],
+    [
+     "RNV",
+     "core",
+     4
+    ],
+    [
+     "CCA",
+     "core",
+     2
+    ],
+    [
+     "HIS",
+     "core",
+     2
+    ],
+    [
+     "ARB",
+     "optional",
+     2
+    ]
+   ]
+  },
+  {
+   "stage": "Middle basic (Primary 4-6)",
+   "years": [
+    "P4",
+    "P5",
+    "P6"
+   ],
+   "subjects": [
+    [
+     "ENG",
+     "core",
+     6
+    ],
+    [
+     "MTH",
+     "core",
+     6
+    ],
+    [
+     "NGL",
+     "core",
+     3
+    ],
+    [
+     "BST",
+     "core",
+     5
+    ],
+    [
+     "RNV",
+     "core",
+     4
+    ],
+    [
+     "CCA",
+     "core",
+     2
+    ],
+    [
+     "HIS",
+     "core",
+     2
+    ],
+    [
+     "PVS",
+     "core",
+     3
+    ],
+    [
+     "FRE",
+     "core",
+     2
+    ],
+    [
+     "ARB",
+     "optional",
+     2
+    ]
+   ]
+  },
+  {
+   "stage": "Upper basic (JSS 1-3)",
+   "years": [
+    "JSS1",
+    "JSS2",
+    "JSS3"
+   ],
+   "subjects": [
+    [
+     "ENG",
+     "core",
+     6
+    ],
+    [
+     "MTH",
+     "core",
+     6
+    ],
+    [
+     "NGL",
+     "core",
+     3
+    ],
+    [
+     "BST",
+     "core",
+     6
+    ],
+    [
+     "RNV",
+     "core",
+     4
+    ],
+    [
+     "CCA",
+     "core",
+     2
+    ],
+    [
+     "HIS",
+     "core",
+     2
+    ],
+    [
+     "PVS",
+     "core",
+     3
+    ],
+    [
+     "FRE",
+     "core",
+     2
+    ],
+    [
+     "BUS",
+     "core",
+     3
+    ],
+    [
+     "ARB",
+     "optional",
+     2
+    ]
+   ]
+  },
+  {
+   "stage": "Senior secondary (SSS 1-3)",
+   "years": [
+    "SSS1",
+    "SSS2",
+    "SSS3"
+   ],
+   "subjects": [
+    [
+     "ENGL",
+     "core",
+     6
+    ],
+    [
+     "MTH",
+     "core",
+     6
+    ],
+    [
+     "CIV",
+     "core",
+     2
+    ],
+    [
+     "DPR",
+     "elective",
+     3
+    ],
+    [
+     "CAT",
+     "elective",
+     3
+    ],
+    [
+     "GMK",
+     "elective",
+     3
+    ],
+    [
+     "BIO",
+     "elective",
+     4
+    ],
+    [
+     "CHE",
+     "elective",
+     4
+    ],
+    [
+     "PHY",
+     "elective",
+     4
+    ],
+    [
+     "FMT",
+     "elective",
+     4
+    ],
+    [
+     "AGR",
+     "elective",
+     3
+    ],
+    [
+     "CMP",
+     "elective",
+     3
+    ],
+    [
+     "PHE",
+     "elective",
+     2
+    ],
+    [
+     "TDR",
+     "elective",
+     3
+    ],
+    [
+     "LIT",
+     "elective",
+     4
+    ],
+    [
+     "GOV",
+     "elective",
+     4
+    ],
+    [
+     "HIS",
+     "elective",
+     3
+    ],
+    [
+     "GEO",
+     "elective",
+     4
+    ],
+    [
+     "CRS",
+     "elective",
+     3
+    ],
+    [
+     "IRS",
+     "elective",
+     3
+    ],
+    [
+     "NGL",
+     "elective",
+     3
+    ],
+    [
+     "FRE",
+     "elective",
+     3
+    ],
+    [
+     "VAR",
+     "elective",
+     3
+    ],
+    [
+     "MUS",
+     "elective",
+     3
+    ],
+    [
+     "ECO",
+     "elective",
+     4
+    ],
+    [
+     "ACC",
+     "elective",
+     4
+    ],
+    [
+     "COM",
+     "elective",
+     4
+    ],
+    [
+     "OFP",
+     "elective",
+     3
+    ]
+   ]
+  },
+  {
+   "stage": "Adult and non-formal",
+   "years": [
+    "BL",
+    "PL",
+    "CE"
+   ],
+   "subjects": [
+    [
+     "LIT_A",
+     "core",
+     4
+    ],
+    [
+     "NUM_A",
+     "core",
+     4
+    ],
+    [
+     "LIF_A",
+     "core",
+     2
+    ]
+   ]
+  }
+ ]
+}

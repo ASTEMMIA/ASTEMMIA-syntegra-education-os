@@ -6,6 +6,9 @@ login share issuance, rotation, revocation and audit.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -249,3 +252,139 @@ async def check_session(session: AsyncSession, claims: AccessClaims) -> None:
         raise Unauthenticated(
             "your account is not active", next_action="Contact your administrator."
         )
+
+
+# --------------------------------------------------------------------------- email one-time code
+
+EMAIL_CODE_MINUTES = 10
+EMAIL_CODE_ATTEMPTS = 5
+EMAIL_CODES_PER_HOUR = 5
+EMAIL_CODE_ROLES = frozenset({"PAR"})  # who may sign in this way: parents and guardians
+CODE_SENT = "If that address belongs to a parent account, a sign-in code is on its way."
+
+
+def _code_hash(row_id: uuid.UUID, code: str) -> bytes:
+    return hashlib.sha256(f"{row_id}:{code.strip()}".encode()).digest()
+
+
+async def _email_user(session: AsyncSession, tenant_code: str, email: str) -> AppUser | None:
+    """An active account whose every current role may sign in by email code."""
+    from syntegra.iam.models import AccessGrant, Role
+
+    tenant = await governance.tenant_by_code(session, tenant_code.strip().upper())
+    if tenant is None:
+        return None
+    user = (
+        await session.execute(
+            select(AppUser).where(
+                AppUser.tenant_id == tenant.id, AppUser.login == email.strip().lower()
+            )
+        )
+    ).scalar_one_or_none()
+    if user is None or user.status != "active":
+        return None
+    roles = {
+        r
+        for r in (
+            await session.execute(
+                select(Role.code)
+                .join(AccessGrant, AccessGrant.role_id == Role.id)
+                .where(AccessGrant.user_id == user.id, AccessGrant.revoked_at.is_(None))
+            )
+        ).scalars()
+    }
+    return user if roles and roles <= EMAIL_CODE_ROLES else None
+
+
+async def request_email_code(
+    session: AsyncSession, *, tenant_code: str, email: str, ip: str | None = None
+) -> None:
+    """Send a 6-digit code to a parent's email. Says nothing about whether the account exists,
+    and sends at most a few codes an hour."""
+    from syntegra.iam.models import EmailSignInCode
+    from syntegra.platform.email import queue_email
+
+    user = await _email_user(session, tenant_code, email)
+    if user is None:
+        return
+    since = utcnow() - timedelta(hours=1)
+    recent = (
+        await session.execute(
+            select(EmailSignInCode.id).where(
+                EmailSignInCode.user_id == user.id, EmailSignInCode.created_at >= since
+            )
+        )
+    ).all()
+    if len(recent) >= EMAIL_CODES_PER_HOUR:
+        return
+    code = f"{secrets.randbelow(10**6):06d}"
+    row = EmailSignInCode(
+        tenant_id=user.tenant_id,
+        user_id=user.id,
+        code_hash=b"",
+        expires_at=utcnow() + timedelta(minutes=EMAIL_CODE_MINUTES),
+        ip=ip,
+    )
+    session.add(row)
+    await session.flush()
+    row.code_hash = _code_hash(row.id, code)
+    queue_email(
+        session,
+        tenant_id=user.tenant_id,
+        purpose="sign-in-code",
+        to=user.login,
+        subject="Your Syntegra sign-in code",  # not the code: subjects are kept after sending
+        body=(
+            f"Dear {user.display_name},\n\nYour code to sign in is {code}.\n"
+            f"It works once, for {EMAIL_CODE_MINUTES} minutes.\n\n"
+            "If you did not ask for it, ignore this email; nobody can sign in without the code."
+        ),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class CodeRejected:
+    reason: str
+
+
+async def verify_email_code(
+    session: AsyncSession,
+    policy: TokenPolicy,
+    *,
+    tenant_code: str,
+    email: str,
+    code: str,
+    ip: str | None = None,
+    user_agent: str | None = None,
+) -> TokenPair | CodeRejected:
+    """Exchange a code for a session. A wrong code counts towards the limit; the caller
+    commits before answering, so the count sticks."""
+    from syntegra.iam.models import EmailSignInCode
+
+    user = await _email_user(session, tenant_code, email)
+    if user is None:
+        return CodeRejected("that code is not right")
+    row = (
+        await session.execute(
+            select(EmailSignInCode)
+            .where(
+                EmailSignInCode.user_id == user.id,
+                EmailSignInCode.used_at.is_(None),
+                EmailSignInCode.expires_at > utcnow(),
+            )
+            .order_by(EmailSignInCode.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        return CodeRejected("the code has expired")
+    if row.attempts >= EMAIL_CODE_ATTEMPTS:
+        return CodeRejected("too many wrong codes")
+    if not hmac.compare_digest(row.code_hash, _code_hash(row.id, code)):
+        row.attempts += 1
+        await session.flush()
+        return CodeRejected("that code is not right")
+    row.used_at = utcnow()
+    return await _open_session(
+        session, policy, user, method="email_code", amr=["otp"], ip=ip, user_agent=user_agent
+    )

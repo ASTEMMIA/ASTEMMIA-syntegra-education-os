@@ -1,0 +1,434 @@
+{
+ "plan": "tertiary",
+ "title": "Model file plan for tertiary institutions",
+ "version": 1,
+ "note": "Digital copies are kept permanently in the state repository. The paper rule applies only to the original, after verified digitisation.",
+ "functions": [
+  {
+   "code": "GOV",
+   "name": "Governance and administration",
+   "series": [
+    {
+     "code": "GOV/1",
+     "title": "Government policies, circulars and directives",
+     "activity": "Receiving and acting on instructions",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "GOV/2",
+     "title": "Governing Council minutes and papers",
+     "activity": "Council meetings",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": true
+    },
+    {
+     "code": "GOV/3",
+     "title": "Senate / Academic Board minutes and papers",
+     "activity": "Academic governance",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": true
+    },
+    {
+     "code": "GOV/4",
+     "title": "General correspondence",
+     "activity": "Letters in and out",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "GOV/5",
+     "title": "Statutes, regulations and enabling law",
+     "activity": "Legal foundation",
+     "numbering": "single",
+     "classification": "public",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "GOV/6",
+     "title": "Committees and boards",
+     "activity": "Standing and ad hoc committees",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "STU",
+   "name": "Students",
+   "series": [
+    {
+     "code": "STU/1",
+     "title": "Admissions (JAMB / direct entry) and matriculation",
+     "activity": "Admitting students",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "STU/2",
+     "title": "Student personal files",
+     "activity": "One file per student",
+     "numbering": "self",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 10,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "STU/3",
+     "title": "Course registration and results",
+     "activity": "Registration, examinations and senate approval",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "STU/4",
+     "title": "Transcripts and degree / diploma certificates",
+     "activity": "Awards and verification",
+     "numbering": "self",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "STU/5",
+     "title": "Student discipline and examination misconduct",
+     "activity": "Conduct cases",
+     "numbering": "self",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 10,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "STU/6",
+     "title": "Student health and welfare",
+     "activity": "Health centre and counselling",
+     "numbering": "self",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 10,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "STU/7",
+     "title": "Convocation and alumni",
+     "activity": "Graduation",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "ACA",
+   "name": "Academic programmes",
+   "series": [
+    {
+     "code": "ACA/1",
+     "title": "Programme approval and accreditation (NUC, NBTE, NCCE)",
+     "activity": "Regulator accreditation",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": true
+    },
+    {
+     "code": "ACA/2",
+     "title": "Curricula and course outlines",
+     "activity": "What is taught",
+     "numbering": "annual",
+     "classification": "public",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "ACA/3",
+     "title": "External examiners' reports",
+     "activity": "Academic standards",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "ACA/4",
+     "title": "Timetables and examination papers",
+     "activity": "Teaching and examining",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 3,
+      "then": "destroy"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "RES",
+   "name": "Research",
+   "series": [
+    {
+     "code": "RES/1",
+     "title": "Research grants (TETFund and others)",
+     "activity": "Winning and managing grants",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "RES/2",
+     "title": "Research ethics approvals",
+     "activity": "Ethics committee",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 10,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "RES/3",
+     "title": "Theses and dissertations",
+     "activity": "Postgraduate research",
+     "numbering": "annual",
+     "classification": "public",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    }
+   ]
+  },
+  {
+   "code": "STF",
+   "name": "Staff",
+   "series": [
+    {
+     "code": "STF/1",
+     "title": "Staff personal files",
+     "activity": "One file per member of staff",
+     "numbering": "self",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 6,
+      "then": "transfer_archives"
+     },
+     "vital": true
+    },
+    {
+     "code": "STF/2",
+     "title": "Staff discipline and casework",
+     "activity": "Discipline, grievance and capability",
+     "numbering": "self",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "STF/3",
+     "title": "Appointments and promotions committee",
+     "activity": "A&PC papers",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    },
+    {
+     "code": "STF/4",
+     "title": "Appraisal, CPD and leave",
+     "activity": "Performance, development and leave",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 6,
+      "then": "destroy"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "FIN",
+   "name": "Finance",
+   "series": [
+    {
+     "code": "FIN/1",
+     "title": "Budgets, grants and subventions",
+     "activity": "Planning and receiving funds",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "FIN/2",
+     "title": "Fees, levies and receipts",
+     "activity": "Money received",
+     "numbering": "annual",
+     "classification": "confidential",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "FIN/3",
+     "title": "Payment vouchers and cash book",
+     "activity": "Money spent",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "FIN/4",
+     "title": "Audit reports",
+     "activity": "Internal and external audit",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 10,
+      "then": "transfer_archives"
+     },
+     "vital": false
+    }
+   ]
+  },
+  {
+   "code": "EST",
+   "name": "Estates and assets",
+   "series": [
+    {
+     "code": "EST/1",
+     "title": "Land titles, surveys and building plans",
+     "activity": "Owning and building",
+     "numbering": "single",
+     "classification": "internal",
+     "paper": {
+      "retain_years": null,
+      "then": "retain"
+     },
+     "vital": true
+    },
+    {
+     "code": "EST/2",
+     "title": "Asset and inventory registers",
+     "activity": "Furniture, equipment and books",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "EST/3",
+     "title": "Maintenance and works",
+     "activity": "Repairs and projects",
+     "numbering": "annual",
+     "classification": "internal",
+     "paper": {
+      "retain_years": 7,
+      "then": "destroy"
+     },
+     "vital": false
+    },
+    {
+     "code": "EST/4",
+     "title": "Health, safety and incidents",
+     "activity": "Accidents and emergencies",
+     "numbering": "annual",
+     "classification": "restricted",
+     "paper": {
+      "retain_years": 25,
+      "then": "destroy"
+     },
+     "vital": false
+    }
+   ]
+  }
+ ]
+}

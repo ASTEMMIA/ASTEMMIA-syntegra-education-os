@@ -37,7 +37,53 @@ class Settings(BaseSettings):
     field_kek_b64: SecretStr | None = None
     field_previous_keks_b64: list[str] = []  # still able to decrypt during rotation
     blind_index_key_b64: SecretStr | None = None
+    # Messaging (ADR-030): "protected" conversations (pastoral, HR) use a separate key from the
+    # institutional one, so reading them needs that key as well. Required outside dev/test.
+    message_protected_kek_b64: SecretStr | None = None
+
+    # Public forms (ADR-015). Production needs a real CAPTCHA and email sender.
+    # "siteverify" works with Cloudflare Turnstile, hCaptcha and Google reCAPTCHA: all accept a
+    # POST of secret + response and return {"success": true|false}.
+    captcha_provider: Literal["dev", "siteverify"] = "dev"
+    captcha_verify_url: str | None = (
+        None  # e.g. https://challenges.cloudflare.com/turnstile/v0/siteverify
+    )
+    captcha_secret: SecretStr | None = None
+    captcha_site_key: str | None = None  # public; handed to the web form
+    email_sender: Literal["dev", "ses"] = "dev"
+    email_from: str = "no-reply@syntegra.education"
+    # Amazon SES (ADR-017). The From address (or its domain) must be a verified SES identity in
+    # this region. Credentials come from the AWS chain (ECS task role), never from settings.
+    ses_region: str | None = None  # default: residency_region (af-south-1, Cape Town)
+    ses_configuration_set: str | None = None  # bounce/complaint events and reputation metrics
+    # SQS queue that receives the configuration set's events through SNS (ADR-018).
+    ses_events_queue_url: str | None = None
+    public_base_url: str = "http://localhost:8000"  # links in emails point here
     idempotency_ttl_hours: int = 24
+
+    # Single sign-on (ADR-016). Identity providers are configured per organisation in
+    # auth.identity_providers; their client secrets live only here, as a JSON object keyed by
+    # each provider's client_secret_ref, e.g. {"ABIA_ENTRA": "..."} (from Secrets Manager).
+    oidc_client_secrets: dict[str, SecretStr] = {}
+    # Where identity providers send the browser back. Register this exact URL with each one.
+    oidc_redirect_uri: str | None = None  # default: public_base_url + /v1/auth/oidc/callback
+    authenticator_label: str = "Syntegra Education"  # shown in the authenticator app
+
+    # Document repository (ADR-027). Production: an S3 bucket with versioning and Object Lock,
+    # SSE-KMS under the repository key. "local" (dev/test) keeps files in memory, or in
+    # document_dir when set.
+    document_store: Literal["local", "s3"] = "local"
+    document_dir: str | None = None
+    document_bucket: str | None = None
+    document_kms_key_id: str | None = None  # key id or ARN
+    document_max_mb: int = Field(default=50, ge=1, le=500)
+
+    # The browser app (ADR-028): built files of web/, served at /app when the folder exists.
+    web_dir: str = "web/dist"
+
+    @property
+    def redirect_uri(self) -> str:
+        return self.oidc_redirect_uri or self.public_base_url.rstrip("/") + "/v1/auth/oidc/callback"
 
     @property
     def is_mysql(self) -> bool:

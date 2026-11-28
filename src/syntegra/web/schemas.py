@@ -98,10 +98,14 @@ class GrantOut(Model):
     valid_from: date
     valid_to: date | None
     clearance_cap: int
+    role_name: str | None = None
+    scope_name: str | None = None
 
 
 class MeOut(Model):
     user_id: uuid.UUID
+    display_name: str | None = None
+    tenant_code: str | None = None
     tenant_id: uuid.UUID
     active_scope_id: uuid.UUID
     grants: list[GrantOut]

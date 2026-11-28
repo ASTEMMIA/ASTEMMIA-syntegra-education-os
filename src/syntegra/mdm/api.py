@@ -167,6 +167,14 @@ class PersonView:
 # --------------------------------------------------------------------------- helpers
 
 
+DEMO_SOURCE = "demo"
+
+
+def is_demo(source_system: str | None) -> bool:
+    """A demonstration record (ADR-031): made up for a demonstration, shown as such everywhere."""
+    return source_system == DEMO_SOURCE
+
+
 def _ctx_actor() -> uuid.UUID | None:
     return current_context().user_id
 
@@ -365,7 +373,11 @@ async def find_candidates(
         .scalars()
         .all()
     )
-    people = [p for p in people if p.id not in (exclude or set())]
+    # Demonstration records are matched only with each other, never with real people (ADR-031).
+    demo = is_demo(data.source_system)
+    people = [
+        p for p in people if p.id not in (exclude or set()) and is_demo(p.source_system) == demo
+    ]
     facts = await _facts_for(session, people)
     limits = await thresholds(session, data.scope_node_id or ctx.scope_node_id)
     visible = set((await session.execute(governance.subtree_of(ctx.scope_node_id))).scalars())
@@ -593,15 +605,23 @@ async def create_person(
     await session.flush()
 
     review_ids: list[uuid.UUID] = []
-    root: uuid.UUID | None = None
     for c in candidates:
         status = "open" if c.outcome is MatchOutcome.REVIEW else "different_people"
         if c.visible:
             review_scope = person.scope_node_id
         else:
-            # Out of the caller's sight: raise it where a steward can see both records.
-            root = root or await governance.tenant_root_scope(session, ctx.tenant_id)
-            review_scope = root
+            # Out of the caller's sight: file it at the lowest scope that holds both records
+            # (e.g. the LGEA for two schools in it), where a steward can see both (ADR-009).
+            candidate_scope = (
+                await session.execute(
+                    select(Person.scope_node_id)
+                    .where(Person.id == c.person_id)
+                    .execution_options(**_bypass())
+                )
+            ).scalar_one()
+            review_scope = await governance.lowest_common_ancestor(
+                session, person.scope_node_id, candidate_scope
+            )
         review = MatchReview(
             scope_node_id=review_scope,
             person_id=person.id,

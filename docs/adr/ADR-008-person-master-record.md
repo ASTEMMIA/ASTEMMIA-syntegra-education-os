@@ -43,8 +43,8 @@ All are tenant-scoped with the §6.1 standard columns and audited on the tenant 
   candidate and giving a reason; that is stored as a decided review.
 * **Organisation-wide, privacy-preserving (P6):** candidates are looked for across the whole tenant, so
   duplicates across campuses are caught. A candidate outside the caller's scope is reported as "a possible
-  match exists elsewhere" with no name, date or ID. Its review is filed at the tenant root, under a
-  recorded `duplicate-escalation` purpose, where a steward can see both records.
+  match exists elsewhere" with no name, date or ID. Its review is filed at the lowest scope containing
+  both records (ADR-009), under a recorded `duplicate-escalation` purpose, where a steward can see both.
 
 **Merge and un-merge:**
 * **Survivorship:** per field, a known value beats an empty one, then the higher source trust
@@ -91,9 +91,9 @@ every write.
 * merge and reverse
 
 ## Open
-* **Cross-tenant identity:** a learner moving between two institution tenants. Matching is per tenant
-  today. Recommended next: a state registry tenant that masters Person 360 for public schools, with
-  institutions holding grants (needs its own ADR before Phase 1 transfers).
+* **Cross-tenant identity:** resolved for government schools by ADR-009 (one ASUBEB tenant, with
+  reviews routed to the lowest common scope). A learner moving between a **private** school tenant and
+  the state system still needs the transfer workflow (§22) in Phase 1.
 * **AWS KMS key provider** in place of `LocalKeyProvider`, before production.
 * **More matching evidence:**
   * guardian contact and prior institution, which arrive with Families and Enrolment in Phase 1

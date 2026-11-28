@@ -187,3 +187,14 @@ def build_field_crypto(
         kek, bidx = base64.b64decode(kek_b64), base64.b64decode(blind_index_key_b64)
     provider = LocalKeyProvider(kek, [base64.b64decode(k) for k in previous_keks_b64])
     return FieldCrypto(FieldCipher(provider), BlindIndex(bidx))
+
+
+def build_protected_cipher(*, env: str, kek_b64: str | None) -> FieldCipher:
+    """The separate key for protected conversations (ADR-030)."""
+    if kek_b64 is None:
+        if env not in ("dev", "test"):
+            raise RuntimeError("SYNTEGRA_MESSAGE_PROTECTED_KEK_B64 is required outside dev/test")
+        kek = _dev_key(b"messages-protected")
+    else:
+        kek = base64.b64decode(kek_b64)
+    return FieldCipher(LocalKeyProvider(kek))

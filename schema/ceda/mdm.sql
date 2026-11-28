@@ -1,6 +1,53 @@
 -- Generated from the Python domain model by scripts/generate_ddl.py. Do not edit.
 CREATE DATABASE IF NOT EXISTS mdm;
 
+CREATE TABLE mdm.address (
+	address_no INTEGER NOT NULL, 
+	address_line1 VARCHAR(255) NOT NULL, 
+	address_line2 VARCHAR(255), 
+	address_line3 VARCHAR(255), 
+	address_line4 VARCHAR(255), 
+	address_line5 VARCHAR(255), 
+	local_government_area VARCHAR(64), 
+	lga_key VARCHAR(64), 
+	state VARCHAR(64), 
+	country VARCHAR(64), 
+	postcode VARCHAR(16), 
+	paf_key VARCHAR(40), 
+	address_description VARCHAR(255), 
+	address_key BINARY(32) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_address PRIMARY KEY (id), 
+	CONSTRAINT uq_address_tenant_id_address_no UNIQUE (tenant_id, address_no), 
+	CONSTRAINT uq_address_tenant_id_scope_node_id_address_key UNIQUE (tenant_id, scope_node_id, address_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_address_tenant_id_lga_key ON mdm.address (tenant_id, lga_key);
+
+CREATE INDEX ix_address_tenant_id_paf_key ON mdm.address (tenant_id, paf_key);
+
+CREATE INDEX ix_address_tenant_id_postcode ON mdm.address (tenant_id, postcode);
+
+CREATE TABLE mdm.address_type (
+	id BINARY(16) NOT NULL, 
+	code VARCHAR(24) NOT NULL, 
+	description VARCHAR(100) NOT NULL, 
+	applies_to VARCHAR(16) NOT NULL, 
+	active BOOL NOT NULL, 
+	CONSTRAINT pk_address_type PRIMARY KEY (id), 
+	CONSTRAINT ck_address_type_applies_to CHECK (applies_to IN ('person','organisation','any')), 
+	CONSTRAINT uq_address_type_code UNIQUE (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE mdm.person (
 	given_name VARCHAR(100) NOT NULL, 
 	family_name VARCHAR(100) NOT NULL, 
@@ -149,6 +196,37 @@ CREATE TABLE mdm.person_name (
 CREATE INDEX ix_person_name_tenant_id_family_key ON mdm.person_name (tenant_id, family_key);
 
 CREATE INDEX ix_person_name_tenant_id_person_id ON mdm.person_name (tenant_id, person_id);
+
+CREATE TABLE mdm.party_address (
+	address_id BINARY(16) NOT NULL, 
+	person_id BINARY(16), 
+	institution_id BINARY(16), 
+	address_type_id BINARY(16) NOT NULL, 
+	effective_from DATE NOT NULL, 
+	effective_to DATE, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	updated_at DATETIME(6) NOT NULL, 
+	created_by BINARY(16), 
+	updated_by BINARY(16), 
+	row_version INTEGER NOT NULL, 
+	source_system VARCHAR(64), 
+	source_ref VARCHAR(128), 
+	id BINARY(16) NOT NULL, 
+	CONSTRAINT pk_party_address PRIMARY KEY (id), 
+	CONSTRAINT ck_party_address_one_party CHECK ((person_id IS NULL AND institution_id IS NOT NULL) OR (person_id IS NOT NULL AND institution_id IS NULL)), 
+	CONSTRAINT fk_party_address_address_id_address FOREIGN KEY(address_id) REFERENCES mdm.address (id), 
+	CONSTRAINT fk_party_address_person_id_person FOREIGN KEY(person_id) REFERENCES mdm.person (id), 
+	CONSTRAINT fk_party_address_institution_id_institution FOREIGN KEY(institution_id) REFERENCES org.institution (id), 
+	CONSTRAINT fk_party_address_address_type_id_address_type FOREIGN KEY(address_type_id) REFERENCES mdm.address_type (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_party_address_tenant_id_address_id ON mdm.party_address (tenant_id, address_id);
+
+CREATE INDEX ix_party_address_tenant_id_institution_id ON mdm.party_address (tenant_id, institution_id);
+
+CREATE INDEX ix_party_address_tenant_id_person_id ON mdm.party_address (tenant_id, person_id);
 
 CREATE TABLE mdm.person_merge (
 	survivor_id BINARY(16) NOT NULL, 

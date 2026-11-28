@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "name": "ng",
+  "description": "Nigeria: national and West African examination, admissions, regulatory and funding bodies. Data, not code: edit and re-seed to add or correct a body.",
+  "bodies": [
+    {
+      "code": "WAEC", "name": "West African Examinations Council", "scope": "regional",
+      "countries": ["NG", "GH", "SL", "GM", "LR"], "roles": ["examination"],
+      "covers": {"levels": ["sss"], "types": ["school"]},
+      "examinations": [
+        {"code": "WASSCE-SC", "name": "WASSCE for School Candidates", "levels": ["sss"]},
+        {"code": "WASSCE-PC", "name": "WASSCE for Private Candidates", "levels": ["sss"]}
+      ]
+    },
+    {
+      "code": "NECO", "name": "National Examinations Council", "scope": "national",
+      "countries": ["NG"], "roles": ["examination"],
+      "covers": {"levels": ["primary", "jss", "sss"], "types": ["school"]},
+      "examinations": [
+        {"code": "SSCE-INT", "name": "Senior School Certificate Examination (Internal)", "levels": ["sss"]},
+        {"code": "SSCE-EXT", "name": "Senior School Certificate Examination (External)", "levels": ["sss"]},
+        {"code": "BECE", "name": "Basic Education Certificate Examination", "levels": ["jss"]},
+        {"code": "NCEE", "name": "National Common Entrance Examination", "levels": ["primary"]}
+      ]
+    },
+    {
+      "code": "NABTEB", "name": "National Business and Technical Examinations Board", "scope": "national",
+      "countries": ["NG"], "roles": ["examination"],
+      "covers": {"levels": ["tvet", "sss"], "types": ["technical_college", "school"]},
+      "examinations": [
+        {"code": "NBC-NTC", "name": "National Business Certificate / National Technical Certificate", "levels": ["tvet", "sss"]},
+        {"code": "ANBC-ANTC", "name": "Advanced National Business / Technical Certificate", "levels": ["tvet"]}
+      ]
+    },
+    {
+      "code": "NBAIS", "name": "National Board for Arabic and Islamic Studies", "scope": "national",
+      "countries": ["NG"], "roles": ["examination"],
+      "covers": {"levels": ["sss"], "types": ["school"]},
+      "examinations": [
+        {"code": "SSCE", "name": "Senior School Certificate Examination (Arabic and Islamic Studies)", "levels": ["sss"]}
+      ]
+    },
+    {
+      "code": "JAMB", "name": "Joint Admissions and Matriculation Board", "scope": "national",
+      "countries": ["NG"], "roles": ["admissions"],
+      "covers": {"levels": ["degree", "nd", "nce"], "types": ["university", "polytechnic", "college_of_education", "college_of_health"]},
+      "examinations": [
+        {"code": "UTME", "name": "Unified Tertiary Matriculation Examination", "levels": ["sss"]},
+        {"code": "DE", "name": "Direct Entry", "levels": ["nd", "nce"]}
+      ]
+    },
+    {
+      "code": "NUC", "name": "National Universities Commission", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": ["degree", "postgraduate"], "types": ["university"]}
+    },
+    {
+      "code": "NBTE", "name": "National Board for Technical Education", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": ["tvet", "nd", "hnd"], "types": ["polytechnic", "technical_college", "college_of_health", "other_tertiary"]}
+    },
+    {
+      "code": "NCCE", "name": "National Commission for Colleges of Education", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": ["nce"], "types": ["college_of_education"]}
+    },
+    {
+      "code": "NMCN", "name": "Nursing and Midwifery Council of Nigeria", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": [], "types": ["college_of_health", "university"]}
+    },
+    {
+      "code": "CHPRBN", "name": "Community Health Practitioners Registration Board of Nigeria", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": [], "types": ["college_of_health"]}
+    },
+    {
+      "code": "MDCN", "name": "Medical and Dental Council of Nigeria", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": [], "types": ["university"]},
+      "note": "Accredits medical and dental schools, which sit within universities (CEDA §2)."
+    },
+    {
+      "code": "NMEC", "name": "National Commission for Mass Literacy, Adult and Non-Formal Education", "scope": "national",
+      "countries": ["NG"], "roles": ["regulator"],
+      "covers": {"levels": ["adult"], "types": ["adult_learning_centre"]},
+      "note": "Adult literacy, post-literacy and non-formal education (CEDA §2, §23.8). Each state has its own agency for mass education, which registers the centres."
+    },
+    {
+      "code": "UBEC", "name": "Universal Basic Education Commission", "scope": "national",
+      "countries": ["NG"], "roles": ["funding"],
+      "covers": {"levels": ["eccde", "primary", "jss"], "types": ["school"], "ownership": ["public"]}
+    },
+    {
+      "code": "TETFUND", "name": "Tertiary Education Trust Fund", "scope": "national",
+      "countries": ["NG"], "roles": ["funding"],
+      "covers": {"levels": [], "types": ["university", "polytechnic", "college_of_education"], "ownership": ["public"]}
+    },
+    {
+      "code": "TRCN", "name": "Teachers Registration Council of Nigeria", "scope": "national",
+      "countries": ["NG"], "roles": ["professional_registration"],
+      "covers": {"levels": [], "types": []},
+      "note": "Registers and licenses teachers (staff records, CEDA §27), not institutions."
+    },
+    {
+      "code": "NERDC", "name": "Nigerian Educational Research and Development Council", "scope": "national",
+      "countries": ["NG"], "roles": ["curriculum"],
+      "covers": {"levels": [], "types": []},
+      "note": "Curriculum authority (Curriculum 360, CEDA §4, §24), not linked to institutions directly."
+    }
+  ]
+}

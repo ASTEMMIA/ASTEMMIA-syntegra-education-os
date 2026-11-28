@@ -1,11 +1,10 @@
 import pytest
 from sqlalchemy import select, update
 
-from syntegra.core.clock import today
 from syntegra.iam.models import AppUser, AuthSession
-from syntegra.platform.audit_store import verify_day
 from syntegra.platform.settings import Settings
 from syntegra.web.app import create_app
+from tests.audit_helpers import verify_all_days
 
 LOGIN = {"tenant_code": "INS-NG-000101", "login": "Teacher@GCU.test"}
 
@@ -99,7 +98,7 @@ async def test_sign_in_is_audited_and_chain_stays_intact(client, world, sm):
     t = await _login(client)
     await client.post("/v1/auth/refresh", json={"refresh_token": t["refresh_token"]})
     async with sm() as s:
-        count, breaks = await verify_day(s, world.school_a_tenant, today())
+        count, breaks = await verify_all_days(s, world.school_a_tenant)
     assert breaks == [] and count > 0
 
 
@@ -110,7 +109,7 @@ def test_production_refuses_dev_login_and_missing_keys():
         create_app(Settings(env="prod", dev_auth=False))
 
 
-def test_dev_login_route_absent_when_disabled():
+def test_dev_login_route_absent_when_disabled(monkeypatch):
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ec
 
@@ -132,6 +131,46 @@ def test_dev_login_route_absent_when_disabled():
     }
     with pytest.raises(RuntimeError, match="FIELD_KEK"):  # field encryption keys are mandatory too
         create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem))
-    app = create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys))
+    with pytest.raises(RuntimeError, match="MESSAGE_PROTECTED_KEK"):  # and the messaging key
+        create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys))
+    keys["message_protected_kek_b64"] = base64.b64encode(os.urandom(32)).decode()
+    with pytest.raises(RuntimeError, match="CAPTCHA"):  # public forms need a real CAPTCHA (ADR-015)
+        create_app(Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys))
+    captcha = {
+        "captcha_provider": "siteverify",
+        "captcha_verify_url": "https://captcha.example/siteverify",
+        "captcha_secret": "s3cret",
+    }
+    with pytest.raises(RuntimeError, match="email sender"):  # and a real email sender
+        create_app(
+            Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha)
+        )
+    # The SES sender is an open item (ADR-015): stand in for it to look at the routes.
+    from syntegra.platform.email import DevEmailSender
+
+    monkeypatch.setattr("syntegra.web.app.build_sender", lambda settings: DevEmailSender())
+    with pytest.raises(RuntimeError, match="local document store"):  # and S3 for documents
+        create_app(
+            Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha)
+        )
+    with pytest.raises(RuntimeError, match="DOCUMENT_BUCKET"):  # with its bucket and KMS key
+        create_app(
+            Settings(
+                env="prod",
+                dev_auth=False,
+                token_signing_key_pem=pem,
+                document_store="s3",
+                **keys,
+                **captcha,
+            )
+        )
+    s3 = {
+        "document_store": "s3",
+        "document_bucket": "syntegra-records-af-south-1",
+        "document_kms_key_id": "alias/syntegra-records",
+    }
+    app = create_app(
+        Settings(env="prod", dev_auth=False, token_signing_key_pem=pem, **keys, **captcha, **s3)
+    )
     paths = set(app.openapi()["paths"])
     assert "/v1/auth/dev-login" not in paths and "/v1/auth/refresh" in paths

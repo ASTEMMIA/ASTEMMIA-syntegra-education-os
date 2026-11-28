@@ -20,7 +20,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Mapped, mapped_column
 
-from syntegra.platform.db import Base, EffectiveDated, Hash32, TenantScoped
+from syntegra.core.ids import uuid7
+from syntegra.platform.db import Audited, Base, EffectiveDated, Hash32, TenantScoped
 
 
 def VarBinary(n: int) -> Any:
@@ -166,3 +167,93 @@ class PersonMerge(Base, TenantScoped):
     review_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("mdm.match_review.id"))
     reversed_by: Mapped[uuid.UUID | None]
     reversed_at: Mapped[datetime | None]
+
+
+# --------------------------------------------------------------------------- gazetteer (ADR-022)
+
+
+class AddressType(Base, Audited):
+    """Kinds of address a party can have: home, postal, premises… Platform reference data,
+    audited on the platform chain like the built-in roles."""
+
+    __tablename__ = "address_type"
+    __audit_entity__ = "address_type"
+    __table_args__ = (
+        CheckConstraint("applies_to IN ('person','organisation','any')", name="applies_to"),
+        {"schema": "mdm"},
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid7)
+    code: Mapped[str] = mapped_column(String(24), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(String(100), nullable=False)
+    applies_to: Mapped[str] = mapped_column(String(16), nullable=False, default="any")
+    active: Mapped[bool] = mapped_column(nullable=False, default=True)
+
+    def audit_tenant_id(self) -> uuid.UUID:
+        return uuid.UUID(int=0)
+
+    def audit_scope_node_id(self) -> uuid.UUID | None:
+        return None
+
+
+class Address(Base, TenantScoped):
+    """One physical address, held once per scope and shared by every party at it (ADR-022).
+
+    Lines 1-5 carry street, area, town and so on as written; the local government area, state and
+    postcode are checked against the jurisdiction's structure file. ``paf_key`` is the postal
+    service's own reference for the address (Postcode Address File / NIPOST), when known."""
+
+    __tablename__ = "address"
+    __audit_entity__ = "address"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "address_no"),
+        UniqueConstraint("tenant_id", "scope_node_id", "address_key"),
+        Index(None, "tenant_id", "lga_key"),
+        Index(None, "tenant_id", "postcode"),
+        Index(None, "tenant_id", "paf_key"),
+        {"schema": "mdm"},
+    )
+
+    address_no: Mapped[int] = mapped_column(Integer, nullable=False)  # "Address No"
+    address_line1: Mapped[str] = mapped_column(String(255), nullable=False)
+    address_line2: Mapped[str | None] = mapped_column(String(255))
+    address_line3: Mapped[str | None] = mapped_column(String(255))
+    address_line4: Mapped[str | None] = mapped_column(String(255))
+    address_line5: Mapped[str | None] = mapped_column(String(255))
+    local_government_area: Mapped[str | None] = mapped_column(String(64))
+    lga_key: Mapped[str | None] = mapped_column(String(64))
+    state: Mapped[str | None] = mapped_column(String(64))
+    country: Mapped[str | None] = mapped_column(String(64))
+    postcode: Mapped[str | None] = mapped_column(String(16))  # the diagram's "zipcode"
+    paf_key: Mapped[str | None] = mapped_column(String(40))
+    address_description: Mapped[str | None] = mapped_column(String(255))
+    address_key: Mapped[bytes] = mapped_column(Hash32(), nullable=False)  # folded lines: dedupe
+
+
+class PartyAddress(Base, TenantScoped):
+    """A party's address of one type over a period (ADR-022): the diagram's Party + Address +
+    Address Type. A party is a person or an organisation (an institution). Moving ends the old
+    link (``effective_to``) and starts a new one, so history is kept."""
+
+    __tablename__ = "party_address"
+    __audit_entity__ = "party_address"
+    __table_args__ = (
+        CheckConstraint(
+            "(person_id IS NULL AND institution_id IS NOT NULL) OR "
+            "(person_id IS NOT NULL AND institution_id IS NULL)",
+            name="one_party",
+        ),
+        Index(None, "tenant_id", "person_id"),
+        Index(None, "tenant_id", "institution_id"),
+        Index(None, "tenant_id", "address_id"),
+        {"schema": "mdm"},
+    )
+
+    address_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("mdm.address.id"), nullable=False)
+    person_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("mdm.person.id"))
+    institution_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("org.institution.id"))
+    address_type_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("mdm.address_type.id"), nullable=False
+    )
+    effective_from: Mapped[date] = mapped_column(nullable=False)
+    effective_to: Mapped[date | None]

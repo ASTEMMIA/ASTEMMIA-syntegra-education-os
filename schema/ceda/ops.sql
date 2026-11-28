@@ -40,6 +40,42 @@ CREATE INDEX ix_audit_event_tenant_id_actor_id_occurred_at ON ops.audit_event (t
 
 CREATE INDEX ix_audit_event_tenant_id_entity_type_entity_id ON ops.audit_event (tenant_id, entity_type, entity_id);
 
+CREATE TABLE ops.bulk_job (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	scope_node_id BINARY(16) NOT NULL, 
+	kind VARCHAR(32) NOT NULL, 
+	status VARCHAR(16) NOT NULL, 
+	source_name VARCHAR(255), 
+	summary JSON NOT NULL, 
+	created_by BINARY(16), 
+	created_at DATETIME(6) NOT NULL, 
+	committed_by BINARY(16), 
+	committed_at DATETIME(6), 
+	CONSTRAINT pk_bulk_job PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_bulk_job_tenant_id_created_at ON ops.bulk_job (tenant_id, created_at);
+
+CREATE TABLE ops.email_suppression (
+	id BINARY(16) NOT NULL, 
+	address_hash BINARY(32) NOT NULL, 
+	reason VARCHAR(16) NOT NULL, 
+	events INTEGER NOT NULL, 
+	first_at DATETIME(6) NOT NULL, 
+	last_at DATETIME(6) NOT NULL, 
+	CONSTRAINT pk_email_suppression PRIMARY KEY (id), 
+	CONSTRAINT ck_email_suppression_reason CHECK (reason IN ('bounce','complaint')), 
+	CONSTRAINT uq_email_suppression_address_hash UNIQUE (address_hash)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE ops.id_sequence (
+	tenant_id BINARY(16) NOT NULL, 
+	name VARCHAR(32) NOT NULL, 
+	`last_value` BIGINT NOT NULL, 
+	CONSTRAINT pk_id_sequence PRIMARY KEY (tenant_id, name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE ops.idempotency_record (
 	id BINARY(16) NOT NULL, 
 	tenant_id BINARY(16) NOT NULL, 
@@ -52,6 +88,29 @@ CREATE TABLE ops.idempotency_record (
 	CONSTRAINT pk_idempotency_record PRIMARY KEY (id), 
 	CONSTRAINT uq_idempotency_record_tenant_id_user_id_idem_key UNIQUE (tenant_id, user_id, idem_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE ops.outbound_email (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	purpose VARCHAR(48) NOT NULL, 
+	to_address VARCHAR(254) NOT NULL, 
+	subject VARCHAR(255) NOT NULL, 
+	body TEXT NOT NULL, 
+	created_at DATETIME(6) NOT NULL, 
+	sent_at DATETIME(6), 
+	attempts INTEGER NOT NULL, 
+	last_error VARCHAR(500), 
+	next_attempt_at DATETIME(6), 
+	provider_message_id VARCHAR(128), 
+	ref VARCHAR(64), 
+	delivery_status VARCHAR(16), 
+	CONSTRAINT pk_outbound_email PRIMARY KEY (id), 
+	CONSTRAINT uq_outbound_email_provider_message_id UNIQUE (provider_message_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_outbound_email_ref ON ops.outbound_email (ref);
+
+CREATE INDEX ix_outbound_email_sent_at_id ON ops.outbound_email (sent_at, id);
 
 CREATE TABLE ops.outbox_event (
 	id BINARY(16) NOT NULL, 
@@ -75,3 +134,31 @@ CREATE TABLE ops.outbox_event (
 CREATE INDEX ix_outbox_event_aggregate_type_aggregate_id ON ops.outbox_event (aggregate_type, aggregate_id);
 
 CREATE INDEX ix_outbox_event_published_at_id ON ops.outbox_event (published_at, id);
+
+CREATE TABLE ops.bulk_job_row (
+	job_id BINARY(16) NOT NULL, 
+	row_no INTEGER NOT NULL, 
+	data JSON NOT NULL, 
+	status VARCHAR(16) NOT NULL, 
+	messages JSON NOT NULL, 
+	result_id BINARY(16), 
+	CONSTRAINT pk_bulk_job_row PRIMARY KEY (job_id, row_no), 
+	CONSTRAINT fk_bulk_job_row_job_id_bulk_job FOREIGN KEY(job_id) REFERENCES ops.bulk_job (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE ops.email_event (
+	id BINARY(16) NOT NULL, 
+	tenant_id BINARY(16) NOT NULL, 
+	outbound_email_id BINARY(16) NOT NULL, 
+	event_key BINARY(32) NOT NULL, 
+	event_type VARCHAR(16) NOT NULL, 
+	subtype VARCHAR(64), 
+	detail VARCHAR(500), 
+	occurred_at DATETIME(6) NOT NULL, 
+	received_at DATETIME(6) NOT NULL, 
+	CONSTRAINT pk_email_event PRIMARY KEY (id), 
+	CONSTRAINT fk_email_event_outbound_email_id_outbound_email FOREIGN KEY(outbound_email_id) REFERENCES ops.outbound_email (id), 
+	CONSTRAINT uq_email_event_event_key UNIQUE (event_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE INDEX ix_email_event_outbound_email_id ON ops.email_event (outbound_email_id);

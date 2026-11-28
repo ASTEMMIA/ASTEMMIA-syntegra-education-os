@@ -6,15 +6,14 @@ from datetime import date
 import pytest
 from sqlalchemy import select
 
-from syntegra.core.clock import today
 from syntegra.core.context import RequestContext, use_context
 from syntegra.core.errors import Conflict, NotFound, PreconditionFailed, ValidationFailed
 from syntegra.mdm import api as mdm
 from syntegra.mdm.domain import ContactKind, IdentifierScheme, Sex
 from syntegra.mdm.models import ExternalIdentifier, MatchReview, Person
-from syntegra.platform.audit_store import verify_day
 from syntegra.platform.crypto import build_field_crypto
 from syntegra.platform.models import AuditEvent
+from tests.audit_helpers import verify_all_days
 
 CRYPTO = build_field_crypto(
     env="test", kek_b64=None, previous_keks_b64=[], blind_index_key_b64=None
@@ -73,7 +72,7 @@ async def test_create_encrypts_identifier_and_scores_quality(sm, world):
             await s.execute(select(AuditEvent).where(AuditEvent.action == "reveal"))
         ).scalar_one()
         assert reveal.purpose == "exam-registration" and reveal.actor_id == world.registrar_a
-        assert (await verify_day(s, world.school_a_tenant, today()))[1] == []
+        assert (await verify_all_days(s, world.school_a_tenant))[1] == []
 
 
 async def test_reveal_requires_a_purpose(sm, world):

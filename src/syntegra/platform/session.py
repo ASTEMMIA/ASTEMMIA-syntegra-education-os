@@ -22,7 +22,7 @@ from syntegra.core.clock import utcnow
 from syntegra.core.context import RequestContext, maybe_context
 from syntegra.core.errors import InvariantViolation, TenantIsolationError
 from syntegra.core.ids import uuid7
-from syntegra.platform.db import Audited, Evidential, TenantScoped, UUIDBinary
+from syntegra.platform.db import Audited, Evidential, Permanent, TenantScoped, UUIDBinary
 from syntegra.platform.models import AuditChainHead, AuditEvent
 
 # Execution option that lifts the tenancy filter. Only platform jobs (outbox relay, audit
@@ -258,20 +258,25 @@ def _before_flush(session: Session, flush_context: Any, instances: Any) -> None:
             )
         if isinstance(obj, TenantScoped):
             _stamp_and_check(session, obj, ctx, new=False)
-        if isinstance(obj, Audited):
-            pending.append(("update", obj, _snapshot(obj, before=True), None, _changed_fields(obj)))
+        if isinstance(obj, Audited) and (changed := _changed_fields(obj)):
+            # Only audited fields count: counters and read markers are excluded (ADR-030).
+            pending.append(("update", obj, _snapshot(obj, before=True), None, changed))
 
     for obj in list(session.deleted):
         if isinstance(obj, Evidential):
             raise InvariantViolation(
                 f"{type(obj).__name__} is evidential and cannot be deleted (P7)"
             )
+        if isinstance(obj, Permanent):
+            raise InvariantViolation(
+                f"{type(obj).__name__} is kept permanently and cannot be deleted"
+            )
         if isinstance(obj, TenantScoped):
             _stamp_and_check(session, obj, ctx, new=False)
         if isinstance(obj, Audited):
             pending.append(("delete", obj, _snapshot(obj, before=True), None, None))
 
-    for action, obj, before, _, changed in pending:
+    for action, obj, before, _, fields in pending:
         if action == "create" and getattr(obj, "id", None) is None:
             obj.id = uuid7()  # assign now so the audit event can reference it
         after = None if action == "delete" else _snapshot(obj, before=False)
@@ -284,6 +289,6 @@ def _before_flush(session: Session, flush_context: Any, instances: Any) -> None:
             scope_node_id=obj.audit_scope_node_id(),
             before=before,
             after=after,
-            changed_fields=changed,
+            changed_fields=fields,
             cursor=cursor,
         )

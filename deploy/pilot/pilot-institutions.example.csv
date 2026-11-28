@@ -1,0 +1,5 @@
+board,name,type,lga,levels,government_code,address_line1,town,postcode,latitude,longitude
+ASUBEB,EXAMPLE Model Primary School,,Aba North,Primary,,1 Example Street,Aba,450101,5.1167,7.3667
+ASUBEB,EXAMPLE Girls Secondary School,,Umuahia North,JSS; SSS,,2 Example Road,Umuahia,440236,5.5320,7.4860
+MIN-TERTIARY-EDUCATION,EXAMPLE Technical College,Technical college,Umuahia South,Technical,,3 Example Road,Umuahia,440236,5.4890,7.5030
+MIN-TERTIARY-EDUCATION,EXAMPLE State Polytechnic,Poly,Osisioma,ND/HND,,4 Example Road,Aba,450102,5.1490,7.3290
