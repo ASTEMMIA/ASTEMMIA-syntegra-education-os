@@ -14,7 +14,8 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy.schema import CreateIndex, CreateTable
 
 import syntegra.governance.models
-import syntegra.iam.models  # noqa: F401
+import syntegra.iam.models
+import syntegra.mdm.models  # noqa: F401
 from syntegra.platform.db import SCHEMAS, Base
 
 OUT = Path(__file__).resolve().parent.parent / "schema" / "ceda"

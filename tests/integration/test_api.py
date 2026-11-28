@@ -6,6 +6,8 @@ ACCOUNTS = {
     "head_a": ("INS-NG-000101", "head@gcu.test"),
     "teacher_a": ("INS-NG-000101", "teacher@gcu.test"),
     "head_b": ("INS-NG-000102", "head@academy.test"),
+    "registrar_a": ("INS-NG-000101", "registrar@gcu.test"),
+    "registrar_campus_2": ("INS-NG-000101", "annex.registrar@gcu.test"),
 }
 
 

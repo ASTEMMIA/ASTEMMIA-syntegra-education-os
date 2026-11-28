@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     token_signing_key_pem: SecretStr | None = None
     # Public keys (PEM) still accepted for verification during key rotation.
     token_verify_keys_pem: list[str] = []
+
+    # Field-level encryption of Restricted data (§8.1, ADR-008). 32-byte keys, base64.
+    # Required outside dev/test; dev/test fall back to a fixed, public development key.
+    field_kek_b64: SecretStr | None = None
+    field_previous_keks_b64: list[str] = []  # still able to decrypt during rotation
+    blind_index_key_b64: SecretStr | None = None
     idempotency_ttl_hours: int = 24
 
     @property

@@ -12,3 +12,4 @@ Every significant decision ships as an ADR plus a CEDA minor version (EdTech-003
 | [005](ADR-005-open-items.md) | Phase 0 open items | Open |
 | [006](ADR-006-enterprise-platform-baseline.md) | Enterprise baseline: RHEL 10 UBI, Red Hat Python 3.14, MySQL edition | Accepted (RDS for MySQL 9.7 Community) |
 | [007](ADR-007-sign-in-and-tokens.md) | Sign-in and tokens: dev login, ES256 access tokens, rotating refresh tokens | Accepted (OIDC + MFA open) |
+| [008](ADR-008-person-master-record.md) | Person master record: matching, merge, encryption, data quality | Accepted (cross-tenant identity open) |
